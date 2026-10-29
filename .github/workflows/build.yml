@@ -56,6 +56,9 @@ jobs:
             echo "Patched: $FILE"
           fi
 
+      - name: Patch on_audio_query double reply (启动闪退修复)
+        run: python3 tools/patch_oaq.py
+
       - name: Configure keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}

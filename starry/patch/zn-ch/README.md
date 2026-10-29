@@ -57,9 +57,29 @@ flutter build apk --release --split-per-abi --target-platform android-arm64 \
 
 ## 两个已知问题的说明
 
-**启动闪退（Reply already submitted）**
-启动时连查 3 个权限，`permission_handler` 原生侧对同一 MethodChannel 结果重复 reply，
-Java 层异常直接杀进程。已改成「先查 `manageExternalStorage`，未授权再间隔 150ms 查 `storage`」。
+**启动闪退（Reply already submitted）—— 已定位并修复**
+
+用 R8 `mapping.txt` 反混淆堆栈后确认，凶手不是权限插件，而是 **`on_audio_query`**：
+
+```
+com.lucasjosino.on_audio_query.queries.AudioQuery$querySongs$1 -> h3.q:
+  at ...invokeSuspend  →  result.success()  →  IllegalStateException: Reply already submitted
+```
+
+`AudioQuery.querySongs()` 把 `result.success(...)` 放在 `viewModelScope.launch` 协程里，
+而 `PluginProvider.result()` 返回的是**共享的** result。Dart 侧一旦并发发起两次查询
+（启动时媒体库 + 播放器各扫一次），第二次调用会覆盖共享 result，两个协程先后 reply
+同一个 result → Flutter MethodChannel 抛异常 → Java 层直接杀进程。
+
+修复：`tools/patch_oaq.py` 在 CI 里把所有 `queries/*.kt` 的 `result.success(...)`
+包一层 try/catch，重复 reply 只记日志。workflow 已接好：
+
+```yaml
+- name: Patch on_audio_query double reply (启动闪退修复)
+  run: python3 tools/patch_oaq.py
+```
+
+（`permission_handler` 的权限查询也顺手做了串行化，作为次要加固。）
 
 **启动先闪首页**
 `_currentIndex` 原本在 `initState` 里从 `FileManagerProvider` 读 `defaultToBrowseScreen`，
