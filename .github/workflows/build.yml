@@ -90,6 +90,11 @@ jobs:
             --no-tree-shake-icons
           ls -lh build/app/outputs/flutter-apk/
 
+      - name: Verify APK signature
+        run: |
+          APK=build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          keytool -printcert -jarfile "$APK" | grep -E "Owner:|SHA256:" | head -4
+
       - name: Rename
         run: |
           cd build/app/outputs/flutter-apk
