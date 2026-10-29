@@ -101,7 +101,7 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.v.outputs.name }}
+          tag_name: v${{ steps.v.outputs.name }}-${{ github.run_number }}
           name: v${{ steps.v.outputs.name }}
           body: |
             NFile 汉化版，基于上游 v${{ steps.v.outputs.name }}
