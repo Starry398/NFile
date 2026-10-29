@@ -1,0 +1,113 @@
+Categories:
+  - File Manager
+  - System
+License: GPL-3.0-only
+AuthorName: Senzme
+WebSite: https://github.com/Senzme/NFile
+SourceCode: https://github.com/Senzme/NFile
+IssueTracker: https://github.com/Senzme/NFile/issues
+
+AutoName: NFile
+
+RepoType: git
+Repo: https://github.com/Senzme/NFile.git
+
+Builds:
+  - versionName: 1.0.42
+    versionCode: 421
+    commit: 3afa5995b4b23f62d34c5c3cb1a505723c13ed92
+    output: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+    srclibs:
+      - flutter@stable
+    prebuild:
+      - cd ..
+      - mv com.rubex.nfile /tmp/build
+      - pushd /tmp/build
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter config --no-analytics
+      - $$flutter$$/bin/flutter pub get --enforce-lockfile
+      - JFILE=$(find .pub-cache -name FlutterAvifPlugin.java | head -1)
+      - test -z "$JFILE" || echo "// cleared" > "$JFILE"
+      - popd
+      - mv /tmp/build com.rubex.nfile
+    scandelete:
+      - .pub-cache
+    build:
+      - cd ..
+      - mv com.rubex.nfile /tmp/build
+      - pushd /tmp/build
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter build apk --release --split-per-abi --target-platform
+        android-arm
+      - popd
+      - mv /tmp/build com.rubex.nfile
+
+  - versionName: 1.0.42
+    versionCode: 422
+    commit: 3afa5995b4b23f62d34c5c3cb1a505723c13ed92
+    output: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+    srclibs:
+      - flutter@stable
+    prebuild:
+      - cd ..
+      - mv com.rubex.nfile /tmp/build
+      - pushd /tmp/build
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter config --no-analytics
+      - $$flutter$$/bin/flutter pub get --enforce-lockfile
+      - JFILE=$(find .pub-cache -name FlutterAvifPlugin.java | head -1)
+      - test -z "$JFILE" || echo "// cleared" > "$JFILE"
+      - popd
+      - mv /tmp/build com.rubex.nfile
+    scandelete:
+      - .pub-cache
+    build:
+      - cd ..
+      - mv com.rubex.nfile /tmp/build
+      - pushd /tmp/build
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter build apk --release --split-per-abi --target-platform
+        android-arm64
+      - popd
+      - mv /tmp/build com.rubex.nfile
+
+  - versionName: 1.0.42
+    versionCode: 423
+    commit: 3afa5995b4b23f62d34c5c3cb1a505723c13ed92
+    output: build/app/outputs/flutter-apk/app-x86_64-release.apk
+    srclibs:
+      - flutter@stable
+    prebuild:
+      - cd ..
+      - mv com.rubex.nfile /tmp/build
+      - pushd /tmp/build
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter config --no-analytics
+      - $$flutter$$/bin/flutter pub get --enforce-lockfile
+      - JFILE=$(find .pub-cache -name FlutterAvifPlugin.java | head -1)
+      - test -z "$JFILE" || echo "// cleared" > "$JFILE"
+      - popd
+      - mv /tmp/build com.rubex.nfile
+    scandelete:
+      - .pub-cache
+    build:
+      - cd ..
+      - mv com.rubex.nfile /tmp/build
+      - pushd /tmp/build
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter build apk --release --split-per-abi --target-platform
+        android-x64
+      - popd
+      - mv /tmp/build com.rubex.nfile
+
+AllowedAPKSigningKeys: f6e86eca9b0d00c51a7758611b26c3c075d1e9e788265c5b115640114994c2ca
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+VercodeOperation:
+  - 10 * %c + 1
+  - 10 * %c + 2
+  - 10 * %c + 3
+UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
+CurrentVersion: 1.0.42
+CurrentVersionCode: 423
