@@ -53,7 +53,7 @@ index 26bee2a..294ca1e 100644
    }
  
 diff --git a/lib/main.dart b/lib/main.dart
-index 04c3853..05c58d4 100644
+index 04c3853..6f00148 100644
 --- a/lib/main.dart
 +++ b/lib/main.dart
 @@ -1,6 +1,8 @@
@@ -82,7 +82,24 @@ index 04c3853..05c58d4 100644
          androidNotificationIcon: 'mipmap/ic_launcher',
          androidShowNotificationBadge: true,
          androidStopForegroundOnPause: true,
-@@ -170,20 +173,23 @@ class _NFileAppState extends State<NFileApp> {
+@@ -164,26 +167,41 @@ class _NFileAppState extends State<NFileApp> {
+     super.dispose();
+   }
+ 
++  /// 在启动空白页阶段先读好目录，HomeScreen 首帧即有内容；最多等 3 秒。
++  Future<void> _warmUpFileList() async {
++    if (!mounted) return;
++    try {
++      await context
++          .read<FileManagerProvider>()
++          .init()
++          .timeout(const Duration(seconds: 3));
++    } catch (_) {}
++  }
++
+   Future<void> _initializeApplication() async {
+     await _checkStoragePermission();
+   }
  
    Future<void> _checkStoragePermission() async {
      if (Platform.isAndroid) {
@@ -108,6 +125,7 @@ index 04c3853..05c58d4 100644
 +        granted = false;
 +      }
  
++      if (granted) await _warmUpFileList();
        if (mounted) {
          setState(() {
 -          _hasPermission = manageStorageGranted || (standardStorageGranted && audioGranted);
@@ -115,7 +133,7 @@ index 04c3853..05c58d4 100644
          });
        }
      } else {
-@@ -195,22 +201,20 @@ class _NFileAppState extends State<NFileApp> {
+@@ -195,22 +213,21 @@ class _NFileAppState extends State<NFileApp> {
  
    Future<void> _requestStoragePermission() async {
      if (Platform.isAndroid) {
@@ -140,6 +158,7 @@ index 04c3853..05c58d4 100644
 +        granted = false;
 +      }
  
++      if (granted) await _warmUpFileList();
        if (mounted) {
          setState(() {
 -          _hasPermission = manageStorageGranted || (standardStorageGranted && audioGranted);
@@ -147,7 +166,7 @@ index 04c3853..05c58d4 100644
          });
        }
      } else {
-@@ -317,6 +321,13 @@ class _NFileAppState extends State<NFileApp> {
+@@ -317,6 +334,13 @@ class _NFileAppState extends State<NFileApp> {
              return MaterialApp(
                navigatorKey: navigatorKey,
                title: 'NFile',
@@ -161,7 +180,7 @@ index 04c3853..05c58d4 100644
                debugShowCheckedModeBanner: false,
                theme: AppTheme.getAppTheme(light: true, seed: baseSeedColor, customScheme: activeLightScheme, fontFamily: fileManager.fontFamilyOption),
                darkTheme: AppTheme.getAppTheme(light: false, pitchBlack: fileManager.amoledMode, seed: baseSeedColor, customScheme: activeDarkScheme, fontFamily: fileManager.fontFamilyOption),
-@@ -418,7 +429,7 @@ class _IntentLoadingScreen extends StatelessWidget {
+@@ -418,7 +442,7 @@ class _IntentLoadingScreen extends StatelessWidget {
              ),
              const SizedBox(height: 20),
              Text(
@@ -170,7 +189,7 @@ index 04c3853..05c58d4 100644
                style: theme.textTheme.titleMedium?.copyWith(
                  fontWeight: FontWeight.w600,
                  color: theme.colorScheme.onSurface.withOpacity(0.8),
-@@ -426,7 +437,7 @@ class _IntentLoadingScreen extends StatelessWidget {
+@@ -426,7 +450,7 @@ class _IntentLoadingScreen extends StatelessWidget {
              ),
              const SizedBox(height: 6),
              Text(
@@ -179,7 +198,7 @@ index 04c3853..05c58d4 100644
                style: theme.textTheme.bodySmall?.copyWith(
                  color: theme.colorScheme.onSurface.withOpacity(0.5),
                ),
-@@ -460,12 +471,12 @@ class _StoragePermissionShield extends StatelessWidget {
+@@ -460,12 +484,12 @@ class _StoragePermissionShield extends StatelessWidget {
                  ),
                  const SizedBox(height: 24),
                  Text(
@@ -194,7 +213,7 @@ index 04c3853..05c58d4 100644
                    textAlign: TextAlign.center,
                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
                  ),
-@@ -477,7 +488,7 @@ class _StoragePermissionShield extends StatelessWidget {
+@@ -477,7 +501,7 @@ class _StoragePermissionShield extends StatelessWidget {
                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                    ),
                    icon: const Icon(Broken.shield_tick),
@@ -204,7 +223,7 @@ index 04c3853..05c58d4 100644
                ],
              ),
 diff --git a/lib/providers/file_manager_provider.dart b/lib/providers/file_manager_provider.dart
-index 2b51cdc..6ead6e2 100644
+index 2b51cdc..06af761 100644
 --- a/lib/providers/file_manager_provider.dart
 +++ b/lib/providers/file_manager_provider.dart
 @@ -153,7 +153,7 @@ class FileManagerProvider extends ChangeNotifier {
@@ -282,7 +301,7 @@ index 2b51cdc..6ead6e2 100644
                    volumes.add(StorageVolume(name: name, path: entity.path, isInternal: false));
                  }
                }
-@@ -1492,7 +1492,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1492,13 +1492,28 @@ class FileManagerProvider extends ChangeNotifier {
        } catch (_) {}
      } else {
        final dir = await getApplicationDocumentsDirectory();
@@ -291,7 +310,29 @@ index 2b51cdc..6ead6e2 100644
      }
      _storageVolumes = volumes;
      await updateStorageSpace();
-@@ -1912,7 +1912,7 @@ class FileManagerProvider extends ChangeNotifier {
+   }
+ 
+-  Future<void> init() async {
++  bool _initialized = false;
++  bool get initialized => _initialized;
++  Future<void>? _initFuture;
++
++  Future<void> init() => _initFuture ??= _runInit();
++
++  Future<void> _runInit() async {
++    try {
++      await _initInternal();
++    } finally {
++      _initialized = true;
++      notifyListeners();
++    }
++  }
++
++  Future<void> _initInternal() async {
+     String initialPath = '/';
+     if (Platform.isAndroid) {
+       initialPath = '/storage/emulated/0';
+@@ -1912,7 +1927,7 @@ class FileManagerProvider extends ChangeNotifier {
          if (context.mounted) {
            ScaffoldMessenger.of(context).showSnackBar(
              SnackBar(
@@ -300,7 +341,7 @@ index 2b51cdc..6ead6e2 100644
                behavior: SnackBarBehavior.floating,
              ),
            );
-@@ -1922,7 +1922,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1922,7 +1937,7 @@ class FileManagerProvider extends ChangeNotifier {
          if (context.mounted) {
            ScaffoldMessenger.of(context).showSnackBar(
              SnackBar(
@@ -309,7 +350,7 @@ index 2b51cdc..6ead6e2 100644
                backgroundColor: Colors.redAccent,
                behavior: SnackBarBehavior.floating,
              ),
-@@ -1951,8 +1951,8 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1951,8 +1966,8 @@ class FileManagerProvider extends ChangeNotifier {
            if (context.mounted) {
              await FileActionDialogs.showWarningDialog(
                context,
@@ -320,7 +361,7 @@ index 2b51cdc..6ead6e2 100644
              );
            }
            clearClipboard();
-@@ -2028,7 +2028,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2028,7 +2043,7 @@ class FileManagerProvider extends ChangeNotifier {
        progressNotifier.value = FileOperationProgress(
          totalFiles: totalFiles,
          currentFileIndex: 1,
@@ -329,7 +370,7 @@ index 2b51cdc..6ead6e2 100644
          percentage: 0.0,
          speedMBs: 0.0,
          eta: Duration.zero,
-@@ -2043,7 +2043,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2043,7 +2058,7 @@ class FileManagerProvider extends ChangeNotifier {
        // 3. Process items sequentially
        for (int i = 0; i < itemsToProcess.length; i++) {
          if (_isOperationCancelled) {
@@ -338,7 +379,7 @@ index 2b51cdc..6ead6e2 100644
          }
  
          final item = itemsToProcess[i];
-@@ -2105,7 +2105,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2105,7 +2120,7 @@ class FileManagerProvider extends ChangeNotifier {
            }
  
            if (resolution == ConflictResult.cancel) {
@@ -347,7 +388,7 @@ index 2b51cdc..6ead6e2 100644
            } else if (resolution == ConflictResult.skip) {
              shouldProcess = false;
              skippedPaths.add(destPath);
-@@ -2316,7 +2316,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2316,7 +2331,7 @@ class FileManagerProvider extends ChangeNotifier {
        if (context.mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
            SnackBar(
@@ -356,7 +397,7 @@ index 2b51cdc..6ead6e2 100644
              backgroundColor: Colors.redAccent,
              behavior: SnackBarBehavior.floating,
            ),
-@@ -2332,7 +2332,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2332,7 +2347,7 @@ class FileManagerProvider extends ChangeNotifier {
        progressNotifier.value = FileOperationProgress(
          totalFiles: totalFiles,
          currentFileIndex: 1,
@@ -365,7 +406,7 @@ index 2b51cdc..6ead6e2 100644
          percentage: 0.0,
          speedMBs: 0.0,
          eta: Duration.zero,
-@@ -2344,7 +2344,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2344,7 +2359,7 @@ class FileManagerProvider extends ChangeNotifier {
  
        for (int i = 0; i < _remoteClipboardItems.length; i++) {
          if (_isOperationCancelled) {
@@ -374,7 +415,7 @@ index 2b51cdc..6ead6e2 100644
          }
  
          final remoteItem = _remoteClipboardItems[i];
-@@ -2390,7 +2390,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2390,7 +2405,7 @@ class FileManagerProvider extends ChangeNotifier {
        if (context.mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
            SnackBar(
@@ -383,7 +424,7 @@ index 2b51cdc..6ead6e2 100644
              behavior: SnackBarBehavior.floating,
            ),
          );
-@@ -2400,8 +2400,8 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2400,8 +2415,8 @@ class FileManagerProvider extends ChangeNotifier {
        if (context.mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
            SnackBar(
@@ -394,7 +435,7 @@ index 2b51cdc..6ead6e2 100644
              behavior: SnackBarBehavior.floating,
            ),
          );
-@@ -2429,7 +2429,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2429,7 +2444,7 @@ class FileManagerProvider extends ChangeNotifier {
      final List<RemoteFileItem> remoteItems = await client.listDirectory(remoteDirPath);
      for (final item in remoteItems) {
        if (_isOperationCancelled) {
@@ -403,7 +444,7 @@ index 2b51cdc..6ead6e2 100644
        }
        final destPath = p.join(localDirPath, item.name);
        if (item.isDirectory) {
-@@ -2528,7 +2528,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2528,7 +2543,7 @@ class FileManagerProvider extends ChangeNotifier {
            if (await destination.exists()) {
              await destination.delete();
            }
@@ -412,7 +453,7 @@ index 2b51cdc..6ead6e2 100644
          }
          writer.add(chunk);
          onChunkCopied(chunk.length);
-@@ -2673,8 +2673,8 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2673,8 +2688,8 @@ class FileManagerProvider extends ChangeNotifier {
          if (context != null && context.mounted) {
            await FileActionDialogs.showWarningDialog(
              context,
@@ -423,7 +464,7 @@ index 2b51cdc..6ead6e2 100644
            );
          }
          selectedPaths.clear();
-@@ -2822,8 +2822,8 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2822,8 +2837,8 @@ class FileManagerProvider extends ChangeNotifier {
              '_id': i,
              '_data': file.path,
              'title': p.basenameWithoutExtension(file.path),
@@ -434,7 +475,7 @@ index 2b51cdc..6ead6e2 100644
              'duration': 0,
              'size': file.size,
              'display_name': p.basename(file.path),
-@@ -2958,7 +2958,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2958,7 +2973,7 @@ class FileManagerProvider extends ChangeNotifier {
  
      if (sourcePath == destPath || destFolderPath.startsWith(sourcePath + p.separator)) {
        ScaffoldMessenger.of(context).showSnackBar(
@@ -443,7 +484,7 @@ index 2b51cdc..6ead6e2 100644
        );
        return;
      }
-@@ -3006,14 +3006,14 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -3006,14 +3021,14 @@ class FileManagerProvider extends ChangeNotifier {
        
        if (showToast) {
          ScaffoldMessenger.of(context).showSnackBar(
@@ -460,7 +501,7 @@ index 2b51cdc..6ead6e2 100644
          );
        }
      }
-@@ -3039,7 +3039,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -3039,7 +3054,7 @@ class FileManagerProvider extends ChangeNotifier {
  
      if (sourcePath == destPath || destFolderPath.startsWith(sourcePath + p.separator)) {
        ScaffoldMessenger.of(context).showSnackBar(
@@ -469,7 +510,7 @@ index 2b51cdc..6ead6e2 100644
        );
        return;
      }
-@@ -3077,14 +3077,14 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -3077,14 +3092,14 @@ class FileManagerProvider extends ChangeNotifier {
        
        if (showToast) {
          ScaffoldMessenger.of(context).showSnackBar(
@@ -1928,7 +1969,7 @@ index e5608b8..22f22e5 100644
                            ),
                          ),
 diff --git a/lib/ui/screens/directory_screen.dart b/lib/ui/screens/directory_screen.dart
-index bb29a79..569a44e 100644
+index bb29a79..38db839 100644
 --- a/lib/ui/screens/directory_screen.dart
 +++ b/lib/ui/screens/directory_screen.dart
 @@ -55,11 +55,11 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
@@ -2443,18 +2484,20 @@ index bb29a79..569a44e 100644
                                    style: TextStyle(fontWeight: FontWeight.w600),
                                  ),
                                ],
-@@ -1865,8 +1865,9 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -1865,9 +1865,10 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                    Expanded(child: PaneBrowser(tabIndex: 1)),
                                  ],
                                )
 -                            : (provider.isLoading &&
 -                                  provider.currentFiles.isEmpty)
+-                            ? const Center(child: CircularProgressIndicator())
 +                            : (provider.tabs.isEmpty ||
 +                                    (provider.isLoading &&
 +                                        provider.currentFiles.isEmpty))
-                             ? const Center(child: CircularProgressIndicator())
++                            ? const _DirSkeleton()
                              : provider.needsPermission
                              ? RestrictedFolderBanner(
+                                 onEnableRoot: () => provider.enableRootMode(),
 @@ -1922,7 +1923,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                              ),
                                              const SizedBox(width: 6),
@@ -2659,6 +2702,39 @@ index bb29a79..569a44e 100644
                      style: TextStyle(
                        fontWeight: FontWeight.bold,
                        fontSize: 22,
+@@ -2914,3 +2915,32 @@ class _AnimatedTitleButtonState extends State<_AnimatedTitleButton>
+     );
+   }
+ }
++
++
++/// 目录加载中显示的骨架屏：比转圈更贴近最终布局，避免启动瞬间的视觉跳变。
++class _DirSkeleton extends StatelessWidget {
++  const _DirSkeleton();
++
++  @override
++  Widget build(BuildContext context) {
++    final base = Theme.of(context)
++        .colorScheme
++        .surfaceContainerHighest
++        .withValues(alpha: 0.35);
++    return ListView.builder(
++      physics: const NeverScrollableScrollPhysics(),
++      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
++      itemCount: 8,
++      itemBuilder: (context, index) => Padding(
++        padding: const EdgeInsets.symmetric(vertical: 5),
++        child: Container(
++          height: 62,
++          decoration: BoxDecoration(
++            color: base,
++            borderRadius: BorderRadius.circular(18),
++          ),
++        ),
++      ),
++    );
++  }
++}
 diff --git a/lib/ui/screens/document_viewer_screen.dart b/lib/ui/screens/document_viewer_screen.dart
 index 16e111c..93c8691 100644
 --- a/lib/ui/screens/document_viewer_screen.dart
