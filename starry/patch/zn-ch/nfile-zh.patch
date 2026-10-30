@@ -99,7 +99,7 @@ index 26bee2a..294ca1e 100644
    }
  
 diff --git a/lib/main.dart b/lib/main.dart
-index 04c3853..f95342b 100644
+index 04c3853..6f00148 100644
 --- a/lib/main.dart
 +++ b/lib/main.dart
 @@ -1,6 +1,8 @@
@@ -226,15 +226,6 @@ index 04c3853..f95342b 100644
                debugShowCheckedModeBanner: false,
                theme: AppTheme.getAppTheme(light: true, seed: baseSeedColor, customScheme: activeLightScheme, fontFamily: fileManager.fontFamilyOption),
                darkTheme: AppTheme.getAppTheme(light: false, pitchBlack: fileManager.amoledMode, seed: baseSeedColor, customScheme: activeDarkScheme, fontFamily: fileManager.fontFamilyOption),
-@@ -362,7 +386,7 @@ class _NFileAppState extends State<NFileApp> {
- 
-                 return AnnotatedRegion<SystemUiOverlayStyle>(
-                   value: style,
--                  child: child!,
-+                  child: _LaunchFadeIn(child: child!),
-                 );
-               },
-               home: _isResolvingIntent
 @@ -418,7 +442,7 @@ class _IntentLoadingScreen extends StatelessWidget {
              ),
              const SizedBox(height: 20),
@@ -277,54 +268,6 @@ index 04c3853..f95342b 100644
                  ),
                ],
              ),
-@@ -487,3 +511,47 @@ class _StoragePermissionShield extends StatelessWidget {
-     );
-   }
- }
-+
-+
-+class _LaunchFadeIn extends StatefulWidget {
-+  const _LaunchFadeIn({required this.child});
-+
-+  final Widget child;
-+
-+  @override
-+  State<_LaunchFadeIn> createState() => _LaunchFadeInState();
-+}
-+
-+class _LaunchFadeInState extends State<_LaunchFadeIn>
-+    with SingleTickerProviderStateMixin {
-+  late final AnimationController _controller = AnimationController(
-+    vsync: this,
-+    duration: const Duration(milliseconds: 240),
-+  );
-+  late final Animation<double> _opacity =
-+      CurvedAnimation(parent: _controller, curve: Curves.easeOut);
-+  late final Animation<Offset> _offset = Tween<Offset>(
-+    begin: const Offset(0, 0.008),
-+    end: Offset.zero,
-+  ).animate(_opacity);
-+
-+  @override
-+  void initState() {
-+    super.initState();
-+    _controller.forward();
-+  }
-+
-+  @override
-+  void dispose() {
-+    _controller.dispose();
-+    super.dispose();
-+  }
-+
-+  @override
-+  Widget build(BuildContext context) {
-+    return FadeTransition(
-+      opacity: _opacity,
-+      child: SlideTransition(position: _offset, child: widget.child),
-+    );
-+  }
-+}
 diff --git a/lib/providers/file_manager_provider.dart b/lib/providers/file_manager_provider.dart
 index 2b51cdc..06af761 100644
 --- a/lib/providers/file_manager_provider.dart
@@ -2072,7 +2015,7 @@ index e5608b8..22f22e5 100644
                            ),
                          ),
 diff --git a/lib/ui/screens/directory_screen.dart b/lib/ui/screens/directory_screen.dart
-index bb29a79..f3f573e 100644
+index bb29a79..38db839 100644
 --- a/lib/ui/screens/directory_screen.dart
 +++ b/lib/ui/screens/directory_screen.dart
 @@ -55,11 +55,11 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
@@ -2587,36 +2530,21 @@ index bb29a79..f3f573e 100644
                                    style: TextStyle(fontWeight: FontWeight.w600),
                                  ),
                                ],
-@@ -1865,9 +1865,25 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -1865,9 +1865,10 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                    Expanded(child: PaneBrowser(tabIndex: 1)),
                                  ],
                                )
 -                            : (provider.isLoading &&
 -                                  provider.currentFiles.isEmpty)
 -                            ? const Center(child: CircularProgressIndicator())
-+                            : AnimatedSwitcher(
-+                                duration: const Duration(milliseconds: 260),
-+                                switchInCurve: Curves.easeOutCubic,
-+                                switchOutCurve: Curves.easeIn,
-+                                transitionBuilder: (child, anim) =>
-+                                    FadeTransition(
-+                                      opacity: anim,
-+                                      child: SlideTransition(
-+                                        position: Tween<Offset>(
-+                                          begin: const Offset(0, 0.012),
-+                                          end: Offset.zero,
-+                                        ).animate(anim),
-+                                        child: child,
-+                                      ),
-+                                    ),
-+                                child: (provider.tabs.isEmpty ||
++                            : (provider.tabs.isEmpty ||
 +                                    (provider.isLoading &&
 +                                        provider.currentFiles.isEmpty))
 +                            ? const _DirSkeleton()
                              : provider.needsPermission
                              ? RestrictedFolderBanner(
                                  onEnableRoot: () => provider.enableRootMode(),
-@@ -1922,7 +1938,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -1922,7 +1923,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                              ),
                                              const SizedBox(width: 6),
                                              Text(
@@ -2625,7 +2553,7 @@ index bb29a79..f3f573e 100644
                                                style: TextStyle(
                                                  fontSize: 13,
                                                  fontWeight: FontWeight.w600,
-@@ -1943,7 +1959,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -1943,7 +1944,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                              ),
                                              const SizedBox(width: 6),
                                              Text(
@@ -2634,7 +2562,7 @@ index bb29a79..f3f573e 100644
                                                style: TextStyle(
                                                  fontSize: 13,
                                                  fontWeight: FontWeight.w600,
-@@ -2024,8 +2040,8 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2024,8 +2025,8 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                                                          .activeTab
                                                                          .currentPath
                                                                          .isEmpty
@@ -2645,7 +2573,7 @@ index bb29a79..f3f573e 100644
                                                              style: Theme.of(context)
                                                                  .textTheme
                                                                  .titleLarge
-@@ -2052,8 +2068,8 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2052,8 +2053,8 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                                                          .activeTab
                                                                          .currentPath
                                                                          .isEmpty
@@ -2656,7 +2584,7 @@ index bb29a79..f3f573e 100644
                                                              textAlign: TextAlign
                                                                  .center,
                                                              style: Theme.of(context)
-@@ -2110,7 +2126,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2110,7 +2111,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                                              height: 24,
                                                            ),
                                                            Text(
@@ -2665,7 +2593,7 @@ index bb29a79..f3f573e 100644
                                                              style: Theme.of(context)
                                                                  .textTheme
                                                                  .titleLarge
-@@ -2127,7 +2143,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2127,7 +2128,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                                              height: 8,
                                                            ),
                                                            Text(
@@ -2674,7 +2602,7 @@ index bb29a79..f3f573e 100644
                                                              textAlign: TextAlign
                                                                  .center,
                                                              style: Theme.of(context)
-@@ -2169,7 +2185,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2169,7 +2170,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                                      ),
                                                      const SizedBox(height: 24),
                                                      Text(
@@ -2683,7 +2611,7 @@ index bb29a79..f3f573e 100644
                                                        style: Theme.of(context)
                                                            .textTheme
                                                            .titleLarge
-@@ -2186,7 +2202,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2186,7 +2187,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                                      ),
                                                      const SizedBox(height: 8),
                                                      Text(
@@ -2692,17 +2620,7 @@ index bb29a79..f3f573e 100644
                                                        textAlign:
                                                            TextAlign.center,
                                                        style: Theme.of(context)
-@@ -2500,7 +2516,8 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
-                                             ),
-                                     ),
-                                 ],
--                              ),
-+                              )
-+                            ),
-                       );
-                     },
-                   ),
-@@ -2523,7 +2540,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2523,7 +2524,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                        provider.clearClipboard();
                        ScaffoldMessenger.of(context).showSnackBar(
                          const SnackBar(
@@ -2711,7 +2629,7 @@ index bb29a79..f3f573e 100644
                            behavior: SnackBarBehavior.floating,
                          ),
                        );
-@@ -2535,7 +2552,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2535,7 +2536,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                          ScaffoldMessenger.of(context).showSnackBar(
                            const SnackBar(
                              content: Text(
@@ -2720,7 +2638,7 @@ index bb29a79..f3f573e 100644
                              ),
                              behavior: SnackBarBehavior.floating,
                            ),
-@@ -2552,14 +2569,14 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2552,14 +2553,14 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                          if (context.mounted) {
                            ScaffoldMessenger.of(context).showSnackBar(
                              const SnackBar(
@@ -2737,7 +2655,7 @@ index bb29a79..f3f573e 100644
                      ),
                    ),
                  );
-@@ -2600,7 +2617,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2600,7 +2601,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                        children: [
                          IconButton(
                            icon: const Icon(Broken.tick_square),
@@ -2746,7 +2664,7 @@ index bb29a79..f3f573e 100644
                            onPressed: () {
                              if (provider.currentFiles.isNotEmpty) {
                                provider.toggleSelection(
-@@ -2611,7 +2628,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2611,7 +2612,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                          ),
                          IconButton(
                            icon: const Icon(Broken.search_normal),
@@ -2755,7 +2673,7 @@ index bb29a79..f3f573e 100644
                            onPressed: () {
                              provider.toggleSearchForActiveTab();
                            },
-@@ -2619,12 +2636,12 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2619,12 +2620,12 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                          const SizedBox(width: 48), // Center dock slot for FAB
                          IconButton(
                            icon: const Icon(Broken.filter_edit),
@@ -2770,7 +2688,7 @@ index bb29a79..f3f573e 100644
                            onPressed: () =>
                                _showStorageVolumeModal(context, provider),
                          ),
-@@ -2651,27 +2668,27 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2651,27 +2652,27 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
        case FileFilterType.all:
          break;
        case FileFilterType.documents:
@@ -2803,7 +2721,7 @@ index bb29a79..f3f573e 100644
          icon = Broken.archive;
          color = Colors.brown;
          break;
-@@ -2692,7 +2709,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2692,7 +2693,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
              const SizedBox(width: 12),
              Expanded(
                child: Text(
@@ -2812,7 +2730,7 @@ index bb29a79..f3f573e 100644
                  style: TextStyle(
                    fontWeight: FontWeight.bold,
                    fontSize: 13.5,
-@@ -2720,7 +2737,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2720,7 +2721,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                  size: 15,
                ),
                label: Text(
@@ -2821,7 +2739,7 @@ index bb29a79..f3f573e 100644
                  style: TextStyle(
                    color: color,
                    fontWeight: FontWeight.bold,
-@@ -2885,7 +2902,7 @@ class _AnimatedTitleButtonState extends State<_AnimatedTitleButton>
+@@ -2885,7 +2886,7 @@ class _AnimatedTitleButtonState extends State<_AnimatedTitleButton>
                  mainAxisSize: MainAxisSize.min,
                  children: [
                    const Text(
@@ -2830,7 +2748,7 @@ index bb29a79..f3f573e 100644
                      style: TextStyle(
                        fontWeight: FontWeight.bold,
                        fontSize: 22,
-@@ -2914,3 +2931,32 @@ class _AnimatedTitleButtonState extends State<_AnimatedTitleButton>
+@@ -2914,3 +2915,32 @@ class _AnimatedTitleButtonState extends State<_AnimatedTitleButton>
      );
    }
  }
