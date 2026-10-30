@@ -38,6 +38,52 @@ index bdd9e2b..e5d3656 100644
              android:exported="true"
              android:grantUriPermissions="true"
              android:permission="android.permission.MANAGE_DOCUMENTS">
+diff --git a/android/app/src/main/res/drawable-v21/launch_background.xml b/android/app/src/main/res/drawable-v21/launch_background.xml
+index f74085f..fd06659 100644
+--- a/android/app/src/main/res/drawable-v21/launch_background.xml
++++ b/android/app/src/main/res/drawable-v21/launch_background.xml
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <!-- Modify this file to customize your launch splash screen -->
+ <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+-    <item android:drawable="?android:colorBackground" />
++    <item android:drawable="@color/splash_bg" />
+ 
+     <!-- You can insert your own image assets here -->
+     <!-- <item>
+diff --git a/android/app/src/main/res/drawable/launch_background.xml b/android/app/src/main/res/drawable/launch_background.xml
+index 304732f..fd06659 100644
+--- a/android/app/src/main/res/drawable/launch_background.xml
++++ b/android/app/src/main/res/drawable/launch_background.xml
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <!-- Modify this file to customize your launch splash screen -->
+ <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+-    <item android:drawable="@android:color/white" />
++    <item android:drawable="@color/splash_bg" />
+ 
+     <!-- You can insert your own image assets here -->
+     <!-- <item>
+diff --git a/android/app/src/main/res/values-night/colors.xml b/android/app/src/main/res/values-night/colors.xml
+new file mode 100644
+index 0000000..ece0280
+--- /dev/null
++++ b/android/app/src/main/res/values-night/colors.xml
+@@ -0,0 +1,4 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <color name="splash_bg">#0D0D1A</color>
++</resources>
+diff --git a/android/app/src/main/res/values/colors.xml b/android/app/src/main/res/values/colors.xml
+new file mode 100644
+index 0000000..9d3c676
+--- /dev/null
++++ b/android/app/src/main/res/values/colors.xml
+@@ -0,0 +1,4 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <color name="splash_bg">#F9F9FF</color>
++</resources>
 diff --git a/lib/core/utils.dart b/lib/core/utils.dart
 index 26bee2a..294ca1e 100644
 --- a/lib/core/utils.dart
@@ -3512,7 +3558,7 @@ index 47952d5..245f4f9 100644
                        )
                      : ListView.builder(
 diff --git a/lib/ui/screens/home_screen.dart b/lib/ui/screens/home_screen.dart
-index 9f1f9e1..9520bc6 100644
+index 9f1f9e1..c9aa9db 100644
 --- a/lib/ui/screens/home_screen.dart
 +++ b/lib/ui/screens/home_screen.dart
 @@ -8,6 +8,7 @@ import '../widgets/swipable_storage_overview.dart';
@@ -3523,7 +3569,15 @@ index 9f1f9e1..9520bc6 100644
  import '../widgets/nfile_icon.dart';
  import 'directory_screen.dart';
  
-@@ -34,7 +35,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
+@@ -21,6 +22,7 @@ class HomeScreen extends StatefulWidget {
+ 
+ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+   int _currentIndex = 0;
++  bool _homeBuilt = false;
+   DateTime? _lastBrowseTapTime;
+   DateTime? _lastPressedAt;
+   late AnimationController _refreshIconController;
+@@ -34,7 +36,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
        vsync: this,
        duration: const Duration(seconds: 1),
      );
@@ -3533,7 +3587,7 @@ index 9f1f9e1..9520bc6 100644
      WidgetsBinding.instance.addPostFrameCallback((_) {
        context.read<MediaProvider>().loadMedia();
      });
-@@ -74,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
+@@ -74,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
          });
          ScaffoldMessenger.of(context).showSnackBar(
            const SnackBar(
@@ -3542,7 +3596,7 @@ index 9f1f9e1..9520bc6 100644
              behavior: SnackBarBehavior.floating,
              duration: Duration(seconds: 1),
            ),
-@@ -87,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
+@@ -87,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
      showGeneralDialog(
        context: context,
        barrierDismissible: true,
@@ -3551,7 +3605,7 @@ index 9f1f9e1..9520bc6 100644
        barrierColor: Colors.black.withOpacity(0.5),
        transitionDuration: const Duration(milliseconds: 300),
        pageBuilder: (context, anim1, anim2) {
-@@ -126,13 +128,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
+@@ -126,13 +129,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
                      ),
                      const SizedBox(height: 16),
                      Text(
@@ -3567,7 +3621,7 @@ index 9f1f9e1..9520bc6 100644
                    textAlign: TextAlign.center,
                    style: TextStyle(fontSize: 15, height: 1.4),
                  ),
-@@ -145,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
+@@ -145,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                      ),
                      onPressed: () => Navigator.pop(context),
@@ -3576,7 +3630,7 @@ index 9f1f9e1..9520bc6 100644
                    ),
                    ElevatedButton(
                      style: ElevatedButton.styleFrom(
-@@ -156,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
+@@ -156,7 +159,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
                        elevation: 0,
                      ),
                      onPressed: () => SystemNavigator.pop(),
@@ -3585,7 +3639,15 @@ index 9f1f9e1..9520bc6 100644
                    ),
                  ],
                ),
-@@ -192,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
+@@ -169,6 +172,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
+ 
+   @override
+   Widget build(BuildContext context) {
++    if (_currentIndex == 0) _homeBuilt = true;
+     final provider = context.watch<FileManagerProvider>();
+     final theme = Theme.of(context);
+     final canPopHomeScreen = _currentIndex == 1 && !provider.isSelectionMode && provider.canGoBack;
+@@ -192,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
                ScaffoldMessenger.of(context).showSnackBar(
                  SnackBar(
                    content: const Text(
@@ -3594,7 +3656,16 @@ index 9f1f9e1..9520bc6 100644
                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                    ),
                    backgroundColor: theme.colorScheme.primary,
-@@ -247,12 +249,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
+@@ -217,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
+         body: IndexedStack(
+           index: _currentIndex,
+           children: [
+-            _buildHomeTab(),
++            _homeBuilt ? _buildHomeTab() : const SizedBox.shrink(),
+             DirectoryScreen(
+               toggleTheme: widget.toggleTheme,
+               onNavigateTab: (index) => setState(() => _currentIndex = index),
+@@ -247,12 +251,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
                    NavigationDestination(
                      icon: NfileIcon(Broken.home),
                      selectedIcon: NfileIcon(Broken.home_1),
@@ -3609,7 +3680,7 @@ index 9f1f9e1..9520bc6 100644
                    ),
                  ],
                )
-@@ -275,7 +277,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
+@@ -275,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                  children: [
                    Text(
@@ -3618,7 +3689,7 @@ index 9f1f9e1..9520bc6 100644
                      style: theme.textTheme.headlineMedium?.copyWith(
                        fontWeight: FontWeight.bold,
                      ),
-@@ -285,7 +287,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
+@@ -285,7 +289,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Si
                      children: [
                        IconButton(
                          onPressed: _handleRefresh,
