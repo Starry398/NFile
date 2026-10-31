@@ -24,12 +24,6 @@ jobs:
           git apply starry/patch/zn-ch/nfile-zh.patch
           echo "汉化补丁已应用"
 
-      - name: Fix empty-folder flash on launch
-        run: python3 starry/patch/fix_empty_flash.py
-
-      - name: Fix app icon switch order
-        run: python3 starry/patch/fix_icon_switch.py
-
       - name: Read version
         id: v
         run: |
