@@ -2913,7 +2913,7 @@ index 01777e3..947b877 100644
                        color: _showFoldersMode ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant,
                        fontSize: 13,
 diff --git a/lib/ui/screens/more_settings_screen.dart b/lib/ui/screens/more_settings_screen.dart
-index bd359fd..75e4c19 100644
+index bd359fd..c93589d 100644
 --- a/lib/ui/screens/more_settings_screen.dart
 +++ b/lib/ui/screens/more_settings_screen.dart
 @@ -1,5 +1,6 @@
@@ -3061,7 +3061,7 @@ index bd359fd..75e4c19 100644
                      style: theme.textTheme.titleMedium?.copyWith(
                        fontWeight: FontWeight.bold,
                        color: theme.colorScheme.onSurface.withOpacity(0.8),
-@@ -302,64 +305,94 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -302,66 +305,96 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                    context,
                    theme,
                    icon: Broken.setting_2,
@@ -3071,36 +3071,6 @@ index bd359fd..75e4c19 100644
 +                  subtitle: '默认页面、导航控制与快捷方式',
                    targetScreen: const GeneralSettingsScreen(),
                  ),
-+                Card(
-+                  elevation: 0,
-+                  margin: const EdgeInsets.symmetric(vertical: 6),
-+                  color: theme.colorScheme.surface.withOpacity(0.5),
-+                  shape: RoundedRectangleBorder(
-+                    borderRadius: BorderRadius.circular(16),
-+                    side: BorderSide(color: theme.colorScheme.outline.withOpacity(0.1)),
-+                  ),
-+                  child: SwitchListTile(
-+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-+                    secondary: Icon(
-+                      Broken.refresh,
-+                      color: theme.colorScheme.primary,
-+                      size: 22,
-+                    ),
-+                    title: const Text(
-+                      '自动检查更新',
-+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-+                    ),
-+                    subtitle: const Padding(
-+                      padding: EdgeInsets.only(top: 4.0),
-+                      child: Text(
-+                        '启动时检查 Starry398/NFile 的正式版更新',
-+                        style: TextStyle(fontSize: 12),
-+                      ),
-+                    ),
-+                    value: fileManager.autoCheckUpdate,
-+                    onChanged: (v) => fileManager.setAutoCheckUpdate(v),
-+                  ),
-+                ),
                  _buildCategoryCard(
                    context,
                    theme,
@@ -3171,7 +3141,39 @@ index bd359fd..75e4c19 100644
 +                  subtitle: '将设置备份为 JSON 文件，或从备份恢复',
                    targetScreen: const BackupSettingsScreen(),
                  ),
++                Card(
++                  elevation: 0,
++                  margin: const EdgeInsets.symmetric(vertical: 6),
++                  color: theme.colorScheme.surface.withOpacity(0.5),
++                  shape: RoundedRectangleBorder(
++                    borderRadius: BorderRadius.circular(16),
++                    side: BorderSide(color: theme.colorScheme.outline.withOpacity(0.1)),
++                  ),
++                  child: SwitchListTile(
++                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
++                    secondary: Icon(
++                      Broken.refresh,
++                      color: theme.colorScheme.primary,
++                      size: 22,
++                    ),
++                    title: const Text(
++                      '自动检查更新',
++                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
++                    ),
++                    subtitle: const Padding(
++                      padding: EdgeInsets.only(top: 4.0),
++                      child: Text(
++                        '启动时检查 Starry398/NFile 的正式版更新',
++                        style: TextStyle(fontSize: 12),
++                      ),
++                    ),
++                    value: fileManager.autoCheckUpdate,
++                    onChanged: (v) => fileManager.setAutoCheckUpdate(v),
++                  ),
++                ),
                ] else ...[
+                 if (!hasAnyMatch) ...[
+                   const SizedBox(height: 60),
 @@ -383,7 +416,7 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                          ),
                          const SizedBox(height: 20),
@@ -4178,7 +4180,7 @@ index bd359fd..75e4c19 100644
                        behavior: SnackBarBehavior.floating,
                      ),
                    );
-@@ -1756,6 +1798,183 @@ class ActionsSettingsScreen extends StatelessWidget {
+@@ -1756,6 +1798,184 @@ class ActionsSettingsScreen extends StatelessWidget {
    }
  }
  
@@ -4355,14 +4357,15 @@ index bd359fd..75e4c19 100644
 +        ),
 +      ),
 +      );
-+    },
++      },
++    ),
 +  );
 +}
 +
  class TrashSettingsScreen extends StatefulWidget {
    const TrashSettingsScreen({super.key});
  
-@@ -1770,7 +1989,7 @@ class _TrashSettingsScreenState extends State<TrashSettingsScreen> {
+@@ -1770,7 +1990,7 @@ class _TrashSettingsScreenState extends State<TrashSettingsScreen> {
  
      return Scaffold(
        appBar: AppBar(
@@ -4371,7 +4374,7 @@ index bd359fd..75e4c19 100644
          leading: IconButton(
            icon: const NfileIcon(Broken.arrow_left),
            onPressed: () => Navigator.pop(context),
-@@ -1783,8 +2002,8 @@ class _TrashSettingsScreenState extends State<TrashSettingsScreen> {
+@@ -1783,8 +2003,8 @@ class _TrashSettingsScreenState extends State<TrashSettingsScreen> {
            children: [
              SettingsTile(
                icon: Broken.trash,
@@ -4382,7 +4385,7 @@ index bd359fd..75e4c19 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1807,7 +2026,7 @@ class _TrashSettingsScreenState extends State<TrashSettingsScreen> {
+@@ -1807,7 +2027,7 @@ class _TrashSettingsScreenState extends State<TrashSettingsScreen> {
              if (RecycleBinService.isEnabled())
                SettingsTile(
                  icon: Icons.access_time_rounded,
@@ -4391,7 +4394,7 @@ index bd359fd..75e4c19 100644
                  subtitle: _getAutoDeleteDaysLabel(RecycleBinService.getAutoDeleteDays()),
                  onTap: () => _showAutoDeleteDaysPickerDialog(context, theme, () {
                    setState(() {});
-@@ -1826,82 +2045,82 @@ class _TrashSettingsScreenState extends State<TrashSettingsScreen> {
+@@ -1826,82 +2046,82 @@ class _TrashSettingsScreenState extends State<TrashSettingsScreen> {
  
  String _getAccentColorLabel(String option) {
    switch (option) {
@@ -4510,7 +4513,7 @@ index bd359fd..75e4c19 100644
    }
  }
  
-@@ -1914,9 +2133,9 @@ void _showTrailingInfoTypePickerDialog(BuildContext context, FileManagerProvider
+@@ -1914,9 +2134,9 @@ void _showTrailingInfoTypePickerDialog(BuildContext context, FileManagerProvider
      builder: (ctx) {
        final current = fileManager.trailingInfoType;
        final options = [
@@ -4523,7 +4526,7 @@ index bd359fd..75e4c19 100644
        ];
  
        return SafeArea(
-@@ -1938,13 +2157,13 @@ void _showTrailingInfoTypePickerDialog(BuildContext context, FileManagerProvider
+@@ -1938,13 +2158,13 @@ void _showTrailingInfoTypePickerDialog(BuildContext context, FileManagerProvider
                    const SizedBox(height: 16),
                    Padding(
                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -4539,7 +4542,7 @@ index bd359fd..75e4c19 100644
                        style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6), fontSize: 13),
                      ),
                    ),
-@@ -2011,8 +2230,8 @@ void _showExitOptionPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2011,8 +2231,8 @@ void _showExitOptionPickerDialog(BuildContext context, FileManagerProvider fileM
      builder: (ctx) {
        final current = fileManager.exitOption;
        final options = [
@@ -4550,7 +4553,7 @@ index bd359fd..75e4c19 100644
        ];
  
        return SafeArea(
-@@ -2034,7 +2253,7 @@ void _showExitOptionPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2034,7 +2254,7 @@ void _showExitOptionPickerDialog(BuildContext context, FileManagerProvider fileM
                    const SizedBox(height: 16),
                    Padding(
                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -4559,7 +4562,7 @@ index bd359fd..75e4c19 100644
                    ),
                    const SizedBox(height: 16),
                    ListView.builder(
-@@ -2080,17 +2299,17 @@ void _showThemePickerDialog(BuildContext context, FileManagerProvider fileManage
+@@ -2080,17 +2300,17 @@ void _showThemePickerDialog(BuildContext context, FileManagerProvider fileManage
      builder: (ctx) {
        final current = fileManager.accentColorOption;
        final options = [
@@ -4588,7 +4591,7 @@ index bd359fd..75e4c19 100644
        ];
  
        return SafeArea(
-@@ -2112,7 +2331,7 @@ void _showThemePickerDialog(BuildContext context, FileManagerProvider fileManage
+@@ -2112,7 +2332,7 @@ void _showThemePickerDialog(BuildContext context, FileManagerProvider fileManage
                    const SizedBox(height: 16),
                    Padding(
                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -4597,7 +4600,7 @@ index bd359fd..75e4c19 100644
                    ),
                    const SizedBox(height: 16),
                    ListView.builder(
-@@ -2166,12 +2385,12 @@ void _showFolderIconPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2166,12 +2386,12 @@ void _showFolderIconPickerDialog(BuildContext context, FileManagerProvider fileM
      builder: (ctx) {
        final current = fileManager.folderIconOption;
        final options = [
@@ -4616,7 +4619,7 @@ index bd359fd..75e4c19 100644
        ];
  
        return SafeArea(
-@@ -2193,7 +2412,7 @@ void _showFolderIconPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2193,7 +2413,7 @@ void _showFolderIconPickerDialog(BuildContext context, FileManagerProvider fileM
                    const SizedBox(height: 16),
                    Padding(
                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -4625,7 +4628,7 @@ index bd359fd..75e4c19 100644
                    ),
                    const SizedBox(height: 16),
                    ListView.builder(
-@@ -2245,8 +2464,8 @@ void _showMenuIconStylePickerDialog(BuildContext context, FileManagerProvider fi
+@@ -2245,8 +2465,8 @@ void _showMenuIconStylePickerDialog(BuildContext context, FileManagerProvider fi
      builder: (ctx) {
        final current = fileManager.menuIconStyle;
        final options = [
@@ -4636,7 +4639,7 @@ index bd359fd..75e4c19 100644
        ];
  
        return SafeArea(
-@@ -2268,7 +2487,7 @@ void _showMenuIconStylePickerDialog(BuildContext context, FileManagerProvider fi
+@@ -2268,7 +2488,7 @@ void _showMenuIconStylePickerDialog(BuildContext context, FileManagerProvider fi
                    const SizedBox(height: 16),
                    Padding(
                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -4645,7 +4648,7 @@ index bd359fd..75e4c19 100644
                    ),
                    const SizedBox(height: 16),
                    ListView.builder(
-@@ -2315,7 +2534,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2315,7 +2535,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
    showGeneralDialog(
      context: context,
      barrierDismissible: true,
@@ -4654,7 +4657,7 @@ index bd359fd..75e4c19 100644
      barrierColor: Colors.black.withOpacity(0.55),
      transitionDuration: const Duration(milliseconds: 250),
      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
-@@ -2331,7 +2550,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2331,7 +2551,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                children: [
                  Icon(Broken.category, color: theme.colorScheme.primary, size: 26),
                  const SizedBox(width: 12),
@@ -4663,7 +4666,7 @@ index bd359fd..75e4c19 100644
                ],
              ),
              content: SizedBox(
-@@ -2340,7 +2559,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2340,7 +2560,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                  mainAxisSize: MainAxisSize.min,
                  children: [
                    const Text(
@@ -4672,7 +4675,7 @@ index bd359fd..75e4c19 100644
                      style: TextStyle(fontSize: 13, height: 1.3, color: Colors.grey),
                    ),
                    const SizedBox(height: 20),
-@@ -2359,7 +2578,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2359,7 +2579,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
                              id: 'default',
@@ -4681,7 +4684,7 @@ index bd359fd..75e4c19 100644
                              imagePath: 'assets/ic_launcher.webp',
                            ),
                            _buildIconOptionCard(
-@@ -2367,7 +2586,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2367,7 +2587,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
                              id: 'logo1',
@@ -4690,7 +4693,7 @@ index bd359fd..75e4c19 100644
                              imagePath: 'assets/logo/n1.png',
                            ),
                            _buildIconOptionCard(
-@@ -2375,7 +2594,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2375,7 +2595,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
                              id: 'logo2',
@@ -4699,7 +4702,7 @@ index bd359fd..75e4c19 100644
                              imagePath: 'assets/logo/n2.png',
                            ),
                            _buildIconOptionCard(
-@@ -2383,7 +2602,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2383,7 +2603,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
                              id: 'logo3',
@@ -4708,7 +4711,7 @@ index bd359fd..75e4c19 100644
                              imagePath: 'assets/logo/n3.png',
                            ),
                            _buildIconOptionCard(
-@@ -2391,20 +2610,30 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2391,20 +2611,30 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
                              id: 'logo4',
@@ -4741,7 +4744,7 @@ index bd359fd..75e4c19 100644
                ),
              ],
            ),
-@@ -2425,12 +2654,16 @@ Widget _buildIconOptionCard(
+@@ -2425,12 +2655,16 @@ Widget _buildIconOptionCard(
    final isSelected = fileManager.activeAppIcon == id;
  
    return Card(
@@ -4760,7 +4763,7 @@ index bd359fd..75e4c19 100644
          width: isSelected ? 2.0 : 1.0,
        ),
      ),
-@@ -2439,7 +2672,7 @@ Widget _buildIconOptionCard(
+@@ -2439,7 +2673,7 @@ Widget _buildIconOptionCard(
          fileManager.setActiveAppIcon(id);
          ScaffoldMessenger.of(context).showSnackBar(
            SnackBar(
@@ -4769,7 +4772,7 @@ index bd359fd..75e4c19 100644
              behavior: SnackBarBehavior.floating,
              duration: const Duration(seconds: 2),
            ),
-@@ -2472,7 +2705,9 @@ Widget _buildIconOptionCard(
+@@ -2472,7 +2706,9 @@ Widget _buildIconOptionCard(
                style: TextStyle(
                  fontSize: 12,
                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
@@ -4780,7 +4783,7 @@ index bd359fd..75e4c19 100644
                ),
                textAlign: TextAlign.center,
              ),
-@@ -2493,13 +2728,13 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2493,13 +2729,13 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
        final current = fileManager.fontFamilyOption;
        final hasCustomFont = fileManager.customFontPath != null;
        final options = [
@@ -4800,7 +4803,7 @@ index bd359fd..75e4c19 100644
        ];
  
        return SafeArea(
-@@ -2520,12 +2755,12 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2520,12 +2756,12 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                    ),
                    const SizedBox(height: 16),
                    Text(
@@ -4815,7 +4818,7 @@ index bd359fd..75e4c19 100644
                      style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6), fontSize: 13, fontFamily: 'LexendDeca'),
                    ),
                    const SizedBox(height: 16),
-@@ -2565,7 +2800,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2565,7 +2801,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                    OutlinedButton.icon(
                      icon: const Icon(Broken.document_upload, size: 20),
                      label: Text(
@@ -4824,7 +4827,7 @@ index bd359fd..75e4c19 100644
                        style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'LexendDeca'),
                      ),
                      style: OutlinedButton.styleFrom(
-@@ -2589,13 +2824,13 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2589,13 +2825,13 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                              fileManager.setFontFamilyOption('custom');
                              if (context.mounted) {
                                ScaffoldMessenger.of(context).showSnackBar(
@@ -4840,7 +4843,7 @@ index bd359fd..75e4c19 100644
                                );
                              }
                            }
-@@ -2604,8 +2839,8 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2604,8 +2840,8 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                              showDialog(
                                context: context,
                                builder: (context) => AlertDialog(
@@ -4851,7 +4854,7 @@ index bd359fd..75e4c19 100644
                                  actions: [
                                    TextButton(
                                      onPressed: () => Navigator.pop(context),
-@@ -2623,7 +2858,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2623,7 +2859,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                      const SizedBox(height: 8),
                      TextButton.icon(
                        icon: const Icon(Broken.trash, size: 18, color: Colors.redAccent),
@@ -4860,7 +4863,7 @@ index bd359fd..75e4c19 100644
                        onPressed: () async {
                          Navigator.pop(ctx);
                          await fileManager.setCustomFontPath(null);
-@@ -2632,7 +2867,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2632,7 +2868,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                          }
                          if (context.mounted) {
                            ScaffoldMessenger.of(context).showSnackBar(
@@ -4869,7 +4872,7 @@ index bd359fd..75e4c19 100644
                            );
                          }
                        },
-@@ -2656,10 +2891,10 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
+@@ -2656,10 +2892,10 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
      builder: (ctx) {
        final current = RecycleBinService.getAutoDeleteDays();
        final options = [
@@ -4884,7 +4887,7 @@ index bd359fd..75e4c19 100644
        ];
  
        return SafeArea(
-@@ -2683,7 +2918,7 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
+@@ -2683,7 +2919,7 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
                Padding(
                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
                  child: Text(
@@ -4893,7 +4896,7 @@ index bd359fd..75e4c19 100644
                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, fontSize: 18),
                  ),
                ),
-@@ -2691,7 +2926,7 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
+@@ -2691,7 +2927,7 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
                Padding(
                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
                  child: Text(
@@ -4902,13 +4905,6 @@ index bd359fd..75e4c19 100644
                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.5)),
                  ),
                ),
-@@ -2742,5 +2977,6 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
-         ),
-       );
-     },
-+    ),
-   );
- }
 diff --git a/lib/ui/screens/recycle_bin_screen.dart b/lib/ui/screens/recycle_bin_screen.dart
 index 2b910a7..0306a25 100644
 --- a/lib/ui/screens/recycle_bin_screen.dart
