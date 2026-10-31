@@ -284,7 +284,7 @@ index 04c3853..08f1d63 100644
                ],
              ),
 diff --git a/lib/providers/file_manager_provider.dart b/lib/providers/file_manager_provider.dart
-index 2b51cdc..9655f3d 100644
+index 2b51cdc..3d0bc94 100644
 --- a/lib/providers/file_manager_provider.dart
 +++ b/lib/providers/file_manager_provider.dart
 @@ -122,12 +122,15 @@ class FileManagerProvider extends ChangeNotifier {
@@ -328,10 +328,43 @@ index 2b51cdc..9655f3d 100644
      _hideActionText = PreferencesService.getHideActionText();
      _disableLeftBackGesture = PreferencesService.getDisableLeftBackGesture();
      _rememberLastFolder = PreferencesService.getRememberLastFolder();
-@@ -252,6 +258,20 @@ class FileManagerProvider extends ChangeNotifier {
- 
+@@ -253,6 +259,54 @@ class FileManagerProvider extends ChangeNotifier {
    String _activeAppIcon = 'default';
    String get activeAppIcon => _activeAppIcon;
+ 
++  bool _appIconFollowTheme = false;
++  bool get appIconFollowTheme => _appIconFollowTheme;
++
++  ThemeMode _themeMode = ThemeMode.system;
++  ThemeMode get themeMode => _themeMode;
++
++  Future<void> setThemeMode(ThemeMode mode) async {
++    _themeMode = mode;
++    await PreferencesService.saveThemeMode(mode);
++    if (_appIconFollowTheme) {
++      final isDark = mode == ThemeMode.system
++          ? WidgetsBinding.instance.platformDispatcher.platformBrightness ==
++              Brightness.dark
++          : mode == ThemeMode.dark;
++      await syncAppIconWithTheme(isDark);
++    }
++    notifyListeners();
++  }
++
++  Future<void> setAppIconFollowTheme(bool value) async {
++    _appIconFollowTheme = value;
++    await PreferencesService.saveAppIconFollowTheme(value);
++    if (value) {
++      await PreferencesService.saveAutoIconApplied('');
++      await syncAppIconWithTheme(
++        WidgetsBinding.instance.platformDispatcher.platformBrightness ==
++            Brightness.dark,
++      );
++    } else {
++      await PreferencesService.saveAutoIconApplied('');
++    }
++    notifyListeners();
++  }
 +  /// 按当前生效的深浅色切换桌面图标：浅色=徽标2，深色=徽标3
 +  Future<void> syncAppIconWithTheme(bool isDark) async {
 +    final want = isDark ? 'logo3' : 'logo2';
@@ -346,10 +379,11 @@ index 2b51cdc..9655f3d 100644
 +    );
 +    notifyListeners();
 +  }
- 
++
    Future<void> setActiveAppIcon(String val) async {
      if (_activeAppIcon == val) return;
-@@ -267,6 +287,8 @@ class FileManagerProvider extends ChangeNotifier {
+     _activeAppIcon = val;
+@@ -267,6 +321,8 @@ class FileManagerProvider extends ChangeNotifier {
        alias = 'com.rubex.nfile.MainActivityLogo3';
      } else if (val == 'logo4') {
        alias = 'com.rubex.nfile.MainActivityLogo4';
@@ -358,7 +392,7 @@ index 2b51cdc..9655f3d 100644
      }
  
      await AppManagerService.changeAppIcon(alias);
-@@ -648,6 +670,15 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -648,6 +704,15 @@ class FileManagerProvider extends ChangeNotifier {
    }
  
    bool _hideTimeAndDate = false;
@@ -374,7 +408,7 @@ index 2b51cdc..9655f3d 100644
    bool get hideTimeAndDate => _hideTimeAndDate;
  
    void toggleHideTimeAndDate() {
-@@ -1100,7 +1131,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1100,7 +1165,7 @@ class FileManagerProvider extends ChangeNotifier {
          : tab.currentPath;
  
      // 1. Instant check from MediaProvider indexes if matching filter
@@ -383,7 +417,7 @@ index 2b51cdc..9655f3d 100644
        final matchingDocs = <FileSystemEntity>[];
        for (final doc in mediaProvider.documents) {
          if (!isGlobal && !doc.path.startsWith(rootPath)) continue;
-@@ -1120,7 +1151,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1120,7 +1185,7 @@ class FileManagerProvider extends ChangeNotifier {
        }
      }
  
@@ -392,7 +426,7 @@ index 2b51cdc..9655f3d 100644
        for (final song in mediaProvider.audios) {
          final path = song.data;
          if (!isGlobal && !path.startsWith(rootPath)) continue;
-@@ -1181,15 +1212,15 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1181,15 +1246,15 @@ class FileManagerProvider extends ChangeNotifier {
            bool matchFilter = false;
            if (filter == 'All') {
              matchFilter = true;
@@ -413,7 +447,7 @@ index 2b51cdc..9655f3d 100644
              matchFilter = true;
            }
  
-@@ -1453,7 +1484,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1453,7 +1518,7 @@ class FileManagerProvider extends ChangeNotifier {
    Future<void> _detectStorageVolumes() async {
      final volumes = <StorageVolume>[];
      if (Platform.isAndroid) {
@@ -422,7 +456,7 @@ index 2b51cdc..9655f3d 100644
  
        try {
          final extDirs = await getExternalStorageDirectories();
-@@ -1463,7 +1494,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1463,7 +1528,7 @@ class FileManagerProvider extends ChangeNotifier {
              if (path.contains('/Android/')) {
                final root = path.substring(0, path.indexOf('/Android/'));
                if (root != '/storage/emulated/0' && root != '/storage/emulated') {
@@ -431,7 +465,7 @@ index 2b51cdc..9655f3d 100644
                  if (!volumes.any((v) => v.path == root)) {
                    volumes.add(StorageVolume(name: name, path: root, isInternal: false));
                  }
-@@ -1482,7 +1513,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1482,7 +1547,7 @@ class FileManagerProvider extends ChangeNotifier {
                final base = p.basename(entity.path);
                if (base != 'emulated' && base != 'self' && base != 'enterprise') {
                  if (!volumes.any((v) => v.path == entity.path)) {
@@ -440,7 +474,7 @@ index 2b51cdc..9655f3d 100644
                    volumes.add(StorageVolume(name: name, path: entity.path, isInternal: false));
                  }
                }
-@@ -1492,13 +1523,28 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1492,13 +1557,28 @@ class FileManagerProvider extends ChangeNotifier {
        } catch (_) {}
      } else {
        final dir = await getApplicationDocumentsDirectory();
@@ -471,7 +505,7 @@ index 2b51cdc..9655f3d 100644
      String initialPath = '/';
      if (Platform.isAndroid) {
        initialPath = '/storage/emulated/0';
-@@ -1912,7 +1958,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1912,7 +1992,7 @@ class FileManagerProvider extends ChangeNotifier {
          if (context.mounted) {
            ScaffoldMessenger.of(context).showSnackBar(
              SnackBar(
@@ -480,7 +514,7 @@ index 2b51cdc..9655f3d 100644
                behavior: SnackBarBehavior.floating,
              ),
            );
-@@ -1922,7 +1968,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1922,7 +2002,7 @@ class FileManagerProvider extends ChangeNotifier {
          if (context.mounted) {
            ScaffoldMessenger.of(context).showSnackBar(
              SnackBar(
@@ -489,7 +523,7 @@ index 2b51cdc..9655f3d 100644
                backgroundColor: Colors.redAccent,
                behavior: SnackBarBehavior.floating,
              ),
-@@ -1951,8 +1997,8 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1951,8 +2031,8 @@ class FileManagerProvider extends ChangeNotifier {
            if (context.mounted) {
              await FileActionDialogs.showWarningDialog(
                context,
@@ -500,7 +534,7 @@ index 2b51cdc..9655f3d 100644
              );
            }
            clearClipboard();
-@@ -2028,7 +2074,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2028,7 +2108,7 @@ class FileManagerProvider extends ChangeNotifier {
        progressNotifier.value = FileOperationProgress(
          totalFiles: totalFiles,
          currentFileIndex: 1,
@@ -509,7 +543,7 @@ index 2b51cdc..9655f3d 100644
          percentage: 0.0,
          speedMBs: 0.0,
          eta: Duration.zero,
-@@ -2043,7 +2089,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2043,7 +2123,7 @@ class FileManagerProvider extends ChangeNotifier {
        // 3. Process items sequentially
        for (int i = 0; i < itemsToProcess.length; i++) {
          if (_isOperationCancelled) {
@@ -518,7 +552,7 @@ index 2b51cdc..9655f3d 100644
          }
  
          final item = itemsToProcess[i];
-@@ -2105,7 +2151,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2105,7 +2185,7 @@ class FileManagerProvider extends ChangeNotifier {
            }
  
            if (resolution == ConflictResult.cancel) {
@@ -527,7 +561,7 @@ index 2b51cdc..9655f3d 100644
            } else if (resolution == ConflictResult.skip) {
              shouldProcess = false;
              skippedPaths.add(destPath);
-@@ -2316,7 +2362,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2316,7 +2396,7 @@ class FileManagerProvider extends ChangeNotifier {
        if (context.mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
            SnackBar(
@@ -536,7 +570,7 @@ index 2b51cdc..9655f3d 100644
              backgroundColor: Colors.redAccent,
              behavior: SnackBarBehavior.floating,
            ),
-@@ -2332,7 +2378,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2332,7 +2412,7 @@ class FileManagerProvider extends ChangeNotifier {
        progressNotifier.value = FileOperationProgress(
          totalFiles: totalFiles,
          currentFileIndex: 1,
@@ -545,7 +579,7 @@ index 2b51cdc..9655f3d 100644
          percentage: 0.0,
          speedMBs: 0.0,
          eta: Duration.zero,
-@@ -2344,7 +2390,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2344,7 +2424,7 @@ class FileManagerProvider extends ChangeNotifier {
  
        for (int i = 0; i < _remoteClipboardItems.length; i++) {
          if (_isOperationCancelled) {
@@ -554,7 +588,7 @@ index 2b51cdc..9655f3d 100644
          }
  
          final remoteItem = _remoteClipboardItems[i];
-@@ -2390,7 +2436,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2390,7 +2470,7 @@ class FileManagerProvider extends ChangeNotifier {
        if (context.mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
            SnackBar(
@@ -563,7 +597,7 @@ index 2b51cdc..9655f3d 100644
              behavior: SnackBarBehavior.floating,
            ),
          );
-@@ -2400,8 +2446,8 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2400,8 +2480,8 @@ class FileManagerProvider extends ChangeNotifier {
        if (context.mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
            SnackBar(
@@ -574,7 +608,7 @@ index 2b51cdc..9655f3d 100644
              behavior: SnackBarBehavior.floating,
            ),
          );
-@@ -2429,7 +2475,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2429,7 +2509,7 @@ class FileManagerProvider extends ChangeNotifier {
      final List<RemoteFileItem> remoteItems = await client.listDirectory(remoteDirPath);
      for (final item in remoteItems) {
        if (_isOperationCancelled) {
@@ -583,7 +617,7 @@ index 2b51cdc..9655f3d 100644
        }
        final destPath = p.join(localDirPath, item.name);
        if (item.isDirectory) {
-@@ -2528,7 +2574,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2528,7 +2608,7 @@ class FileManagerProvider extends ChangeNotifier {
            if (await destination.exists()) {
              await destination.delete();
            }
@@ -592,7 +626,7 @@ index 2b51cdc..9655f3d 100644
          }
          writer.add(chunk);
          onChunkCopied(chunk.length);
-@@ -2673,8 +2719,8 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2673,8 +2753,8 @@ class FileManagerProvider extends ChangeNotifier {
          if (context != null && context.mounted) {
            await FileActionDialogs.showWarningDialog(
              context,
@@ -603,7 +637,7 @@ index 2b51cdc..9655f3d 100644
            );
          }
          selectedPaths.clear();
-@@ -2822,8 +2868,8 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2822,8 +2902,8 @@ class FileManagerProvider extends ChangeNotifier {
              '_id': i,
              '_data': file.path,
              'title': p.basenameWithoutExtension(file.path),
@@ -614,7 +648,7 @@ index 2b51cdc..9655f3d 100644
              'duration': 0,
              'size': file.size,
              'display_name': p.basename(file.path),
-@@ -2958,7 +3004,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2958,7 +3038,7 @@ class FileManagerProvider extends ChangeNotifier {
  
      if (sourcePath == destPath || destFolderPath.startsWith(sourcePath + p.separator)) {
        ScaffoldMessenger.of(context).showSnackBar(
@@ -623,7 +657,7 @@ index 2b51cdc..9655f3d 100644
        );
        return;
      }
-@@ -3006,14 +3052,14 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -3006,14 +3086,14 @@ class FileManagerProvider extends ChangeNotifier {
        
        if (showToast) {
          ScaffoldMessenger.of(context).showSnackBar(
@@ -640,7 +674,7 @@ index 2b51cdc..9655f3d 100644
          );
        }
      }
-@@ -3039,7 +3085,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -3039,7 +3119,7 @@ class FileManagerProvider extends ChangeNotifier {
  
      if (sourcePath == destPath || destFolderPath.startsWith(sourcePath + p.separator)) {
        ScaffoldMessenger.of(context).showSnackBar(
@@ -649,7 +683,7 @@ index 2b51cdc..9655f3d 100644
        );
        return;
      }
-@@ -3077,14 +3123,14 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -3077,14 +3157,14 @@ class FileManagerProvider extends ChangeNotifier {
        
        if (showToast) {
          ScaffoldMessenger.of(context).showSnackBar(
