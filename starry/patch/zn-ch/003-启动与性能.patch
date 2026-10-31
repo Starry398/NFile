@@ -86,7 +86,7 @@ index 26bee2a..294ca1e 100644
    }
  
 diff --git a/lib/providers/media_provider.dart b/lib/providers/media_provider.dart
-index aba1aa5..2fec2b1 100644
+index aba1aa5..6d8de2c 100644
 --- a/lib/providers/media_provider.dart
 +++ b/lib/providers/media_provider.dart
 @@ -115,16 +115,16 @@ class MediaProvider extends ChangeNotifier {
@@ -280,7 +280,7 @@ index aba1aa5..2fec2b1 100644
      final list = [..._screenshots, ..._customScreenshots].where((item) {
        if (item is AssetEntity && excludeGallery) return false;
        final path = _getItemPath(item);
-@@ -519,16 +519,16 @@ class MediaProvider extends ChangeNotifier {
+@@ -519,16 +519,35 @@ class MediaProvider extends ChangeNotifier {
    int getCategoryItemCount(String category) {
      if (_isLoaded) {
        switch (category) {
@@ -294,20 +294,39 @@ index aba1aa5..2fec2b1 100644
 -        case 'Screenshots': return screenshots.length;
 -        case 'Apps': return 0;
 -        case 'Settings': return 0;
-+        case '图片': return images.length;
-+        case '视频': return videos.length;
-+        case '音频': return _audios.length;
-+        case '文档': return _documents.length;
-+        case '压缩包': return _archives.length;
-+        case '下载': return _downloads.length;
-+        case '安装包': return _apks.length;
-+        case '截图': return screenshots.length;
-+        case '应用': return 0;
-+        case '设置': return 0;
++        case '图片':
++        case 'Images':
++          return images.length;
++        case '视频':
++        case 'Videos':
++          return videos.length;
++        case '音频':
++        case 'Audio':
++          return _audios.length;
++        case '文档':
++        case 'Documents':
++          return _documents.length;
++        case '压缩包':
++        case 'Archives':
++          return _archives.length;
++        case '下载':
++        case 'Downloads':
++          return _downloads.length;
++        case '安装包':
++        case 'APKs':
++          return _apks.length;
++        case '截图':
++        case 'Screenshots':
++          return screenshots.length;
++        case '应用':
++        case 'Apps':
++        case '设置':
++        case 'Settings':
++          return 0;
        }
      }
      return PreferencesService.getCategoryCount(category);
-@@ -574,14 +574,14 @@ class MediaProvider extends ChangeNotifier {
+@@ -574,14 +593,14 @@ class MediaProvider extends ChangeNotifier {
  
          if (map.containsKey('categoryOrder')) {
            _categoryOrder = List<String>.from(map['categoryOrder'] ?? _categoryOrder);
@@ -328,7 +347,7 @@ index aba1aa5..2fec2b1 100644
            }
          }
          if (map.containsKey('activeCategories')) {
-@@ -810,14 +810,14 @@ class MediaProvider extends ChangeNotifier {
+@@ -810,14 +829,14 @@ class MediaProvider extends ChangeNotifier {
      await _saveCache();
      _applySort();
      
@@ -351,7 +370,7 @@ index aba1aa5..2fec2b1 100644
  
      notifyListeners();
    }
-@@ -945,14 +945,14 @@ class MediaProvider extends ChangeNotifier {
+@@ -945,14 +964,14 @@ class MediaProvider extends ChangeNotifier {
  
      _applySort();
  
@@ -374,7 +393,7 @@ index aba1aa5..2fec2b1 100644
  
      _isLoading = false;
      _isLoaded = true;
-@@ -1114,7 +1114,7 @@ class MediaProvider extends ChangeNotifier {
+@@ -1114,7 +1133,7 @@ class MediaProvider extends ChangeNotifier {
    Future<void> _loadDocuments() async {
      final docs = <FileSystemEntity>[];
      final searchDirs = await _getUserSearchDirs();
@@ -383,7 +402,7 @@ index aba1aa5..2fec2b1 100644
  
      for (final dirPath in searchDirs) {
        if (_isPathExcluded(dirPath, excluded)) continue;
-@@ -1125,7 +1125,7 @@ class MediaProvider extends ChangeNotifier {
+@@ -1125,7 +1144,7 @@ class MediaProvider extends ChangeNotifier {
        );
      }
  
@@ -392,7 +411,7 @@ index aba1aa5..2fec2b1 100644
      for (final dirPath in docPaths) {
        if (await Directory(dirPath).exists()) {
          await _scanDirectoryRecursively(
-@@ -1153,9 +1153,9 @@ class MediaProvider extends ChangeNotifier {
+@@ -1153,9 +1172,9 @@ class MediaProvider extends ChangeNotifier {
  
      // For downloads
      final dlDirs = ['/storage/emulated/0/Download', '/storage/emulated/0/Downloads'];
@@ -404,7 +423,7 @@ index aba1aa5..2fec2b1 100644
      for (final dirPath in allDlDirs) {
        if (_isPathExcluded(dirPath, excludedDl)) continue;
        final dir = Directory(dirPath);
-@@ -1173,8 +1173,8 @@ class MediaProvider extends ChangeNotifier {
+@@ -1173,8 +1192,8 @@ class MediaProvider extends ChangeNotifier {
      }
  
      final searchDirs = await _getUserSearchDirs();
@@ -415,7 +434,7 @@ index aba1aa5..2fec2b1 100644
  
      for (final dirPath in searchDirs) {
        final isArchExcl = _isPathExcluded(dirPath, excludedArch);
-@@ -1195,7 +1195,7 @@ class MediaProvider extends ChangeNotifier {
+@@ -1195,7 +1214,7 @@ class MediaProvider extends ChangeNotifier {
        );
      }
  
@@ -424,7 +443,7 @@ index aba1aa5..2fec2b1 100644
      for (final dirPath in archPaths) {
        if (await Directory(dirPath).exists()) {
          await _scanDirectoryRecursively(
-@@ -1210,7 +1210,7 @@ class MediaProvider extends ChangeNotifier {
+@@ -1210,7 +1229,7 @@ class MediaProvider extends ChangeNotifier {
        }
      }
  
@@ -433,7 +452,7 @@ index aba1aa5..2fec2b1 100644
      for (final dirPath in apkPaths) {
        if (await Directory(dirPath).exists()) {
          await _scanDirectoryRecursively(
-@@ -1231,16 +1231,16 @@ class MediaProvider extends ChangeNotifier {
+@@ -1231,16 +1250,16 @@ class MediaProvider extends ChangeNotifier {
    }
  
    Future<void> _scanCustomCategories() async {
@@ -454,7 +473,7 @@ index aba1aa5..2fec2b1 100644
      final customAudFiles = await _scanCustomPaths(audioPaths, FileUtils.isAudio);
      _audios.removeWhere((song) => song.id >= 900000);
      final existingAudioPaths = _audios.map((s) => s.data).toSet();
-@@ -1253,8 +1253,8 @@ class MediaProvider extends ChangeNotifier {
+@@ -1253,8 +1272,8 @@ class MediaProvider extends ChangeNotifier {
              '_id': 900000 + i,
              '_data': file.path,
              'title': p.basenameWithoutExtension(file.path),
@@ -465,7 +484,7 @@ index aba1aa5..2fec2b1 100644
              'duration': 0,
              'size': stat.size,
              'display_name': p.basename(file.path),
-@@ -1267,7 +1267,7 @@ class MediaProvider extends ChangeNotifier {
+@@ -1267,7 +1286,7 @@ class MediaProvider extends ChangeNotifier {
      }
  
      // Documents custom path scan and merge
@@ -474,7 +493,7 @@ index aba1aa5..2fec2b1 100644
      final customDocs = await _scanCustomPaths(docPaths, (ext) => _docExtensions.contains(ext));
      _documents.removeWhere((entity) {
        final isInCustomPath = docPaths.any((dir) => p.isWithin(dir, entity.path));
-@@ -1283,7 +1283,7 @@ class MediaProvider extends ChangeNotifier {
+@@ -1283,7 +1302,7 @@ class MediaProvider extends ChangeNotifier {
      }
  
      // Archives custom path scan and merge
@@ -483,7 +502,7 @@ index aba1aa5..2fec2b1 100644
      final customArch = await _scanCustomPaths(archPaths, (ext) => _archiveExtensions.contains(ext));
      _archives.removeWhere((entity) {
        final isInCustomPath = archPaths.any((dir) => p.isWithin(dir, entity.path));
-@@ -1299,7 +1299,7 @@ class MediaProvider extends ChangeNotifier {
+@@ -1299,7 +1318,7 @@ class MediaProvider extends ChangeNotifier {
      }
  
      // APKs custom path scan and merge
@@ -492,7 +511,7 @@ index aba1aa5..2fec2b1 100644
      final customApks = await _scanCustomPaths(apkPaths, (ext) => _apkExtensions.contains(ext));
      _apks.removeWhere((entity) {
        final isInCustomPath = apkPaths.any((dir) => p.isWithin(dir, entity.path));
-@@ -1315,7 +1315,7 @@ class MediaProvider extends ChangeNotifier {
+@@ -1315,7 +1334,7 @@ class MediaProvider extends ChangeNotifier {
      }
  
      // Downloads custom path scan and merge
@@ -501,7 +520,7 @@ index aba1aa5..2fec2b1 100644
      final customDls = <File>[];
      for (final dirPath in customDlPaths) {
        final dir = Directory(dirPath);
-@@ -1626,14 +1626,14 @@ class MediaProvider extends ChangeNotifier {
+@@ -1626,14 +1645,14 @@ class MediaProvider extends ChangeNotifier {
      }
  
      // Update Counts and Cache

@@ -1,0 +1,116 @@
+name: Build NFile 汉化版 Pre
+
+on:
+  workflow_dispatch:
+    inputs:
+      pre_number:
+        description: 'pre 序号（如 1 → v1.0.44-pre.1），留空则用运行序号'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout upstream
+        uses: actions/checkout@v4
+        with:
+          repository: Senzme/NFile
+          fetch-depth: 1
+
+      - name: Apply my patches
+        run: |
+          git config --global user.name "Starry398"
+          git config --global user.email "starry@users.noreply.github.com"
+          for f in starry/patch/zn-ch/*.patch; do
+            echo "applying $f"
+            git apply --binary "$f" || exit 1
+          done
+
+      - name: Read version
+        id: v
+        run: |
+          V=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          NAME=$(echo "$V" | cut -d '+' -f 1)
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          PRE="${{ github.event.inputs.pre_number }}"
+          if [ -z "$PRE" ]; then PRE="${{ github.run_number }}"; fi
+          echo "pre=$PRE" >> $GITHUB_OUTPUT
+          echo "versionName=$NAME-pre.$PRE"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Patch flutter_avif_android duplicate class
+        run: |
+          FILE=$(find $HOME/.pub-cache -name "FlutterAvifPlugin.java" 2>/dev/null | head -1)
+          if [ -n "$FILE" ]; then
+            echo "// Cleared to resolve redeclaration conflict" > "$FILE"
+          fi
+
+      - name: Patch on_audio_query double reply
+        run: python3 tools/patch_oaq.py
+
+      - name: Configure keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 || secrets.KEYSTORE }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks 2>/dev/null || \
+              { echo "::error::KEYSTORE 不是有效的 base64"; exit 1; }
+            printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=upload-keystore.jks\n' \
+              "$STORE_PASSWORD" "$KEY_PASSWORD" "$KEY_ALIAS" > android/key.properties
+          fi
+
+      - name: Build APK
+        run: |
+          flutter build apk --release --split-per-abi --target-platform android-arm64 \
+            --build-number=$((44000 + ${{ github.run_number }})) \
+            --obfuscate --split-debug-info=build/symbols \
+            --no-tree-shake-icons
+          ls -lh build/app/outputs/flutter-apk/
+
+      - name: Rename
+        run: |
+          cd build/app/outputs/flutter-apk
+          mv app-arm64-v8a-release.apk "NFile-v${{ steps.v.outputs.name }}-pre.${{ steps.v.outputs.pre }}-arm64-v8a.apk"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NFile-v${{ steps.v.outputs.name }}-pre.${{ steps.v.outputs.pre }}-arm64-v8a
+          path: build/app/outputs/flutter-apk/*.apk
+
+      - name: Publish pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.v.outputs.name }}-pre.${{ steps.v.outputs.pre }}
+          name: v${{ steps.v.outputs.name }}-pre.${{ steps.v.outputs.pre }}
+          prerelease: true
+          body: |
+            NFile 汉化版 **预发布**，基于上游 v${{ steps.v.outputs.name }}
+            - 包名 `com.rubex.nfile.starry`，可与上游版本共存
+            - 仅 arm64-v8a
+            - versionCode ${{ github.run_number }}+44000（高于正式版，可直接覆盖安装）
+            - 构建 ${{ github.sha }}
+          files: build/app/outputs/flutter-apk/NFile-v${{ steps.v.outputs.name }}-pre.${{ steps.v.outputs.pre }}-arm64-v8a.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
