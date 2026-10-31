@@ -1,18 +1,20 @@
 diff --git a/android/app/src/main/kotlin/com/rubex/nfile/MainActivity.kt b/android/app/src/main/kotlin/com/rubex/nfile/MainActivity.kt
-index c67c7b8..a217f45 100644
+index c67c7b8..816dd94 100644
 --- a/android/app/src/main/kotlin/com/rubex/nfile/MainActivity.kt
 +++ b/android/app/src/main/kotlin/com/rubex/nfile/MainActivity.kt
-@@ -411,7 +411,8 @@ class MainActivity : AudioServiceFragmentActivity() {
+@@ -411,7 +411,10 @@ class MainActivity : AudioServiceFragmentActivity() {
                                  "com.rubex.nfile.MainActivityLogo1",
                                  "com.rubex.nfile.MainActivityLogo2",
                                  "com.rubex.nfile.MainActivityLogo3",
 -                                "com.rubex.nfile.MainActivityLogo4"
 +                                "com.rubex.nfile.MainActivityLogo4",
-+                                "com.rubex.nfile.MainActivityLogo5"
++                                "com.rubex.nfile.MainActivityLogo5",
++                                "com.rubex.nfile.MainActivityLogo6",
++                                "com.rubex.nfile.MainActivityLogo7"
                              )
  
                              for (alias in aliases) {
-@@ -610,6 +611,80 @@ class MainActivity : AudioServiceFragmentActivity() {
+@@ -610,6 +613,80 @@ class MainActivity : AudioServiceFragmentActivity() {
              }
          }
  
