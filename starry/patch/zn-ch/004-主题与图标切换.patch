@@ -1,8 +1,8 @@
 diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
-index bdd9e2b..22b812c 100644
+index bdd9e2b..35fd400 100644
 --- a/android/app/src/main/AndroidManifest.xml
 +++ b/android/app/src/main/AndroidManifest.xml
-@@ -164,6 +164,45 @@
+@@ -164,6 +164,18 @@
              </intent-filter>
          </activity-alias>
  
@@ -18,37 +18,10 @@ index bdd9e2b..22b812c 100644
 +                <category android:name="android.intent.category.LAUNCHER" />
 +            </intent-filter>
 +        </activity-alias>
-+
-+        <activity-alias
-+            android:name=".MainActivityLogo6"
-+            android:enabled="false"
-+            android:exported="true"
-+            android:icon="@drawable/n6"
-+            android:label="NFile"
-+            android:targetActivity=".MainActivity">
-+            <intent-filter>
-+                <action android:name="android.intent.action.MAIN" />
-+                <category android:name="android.intent.category.LAUNCHER" />
-+            </intent-filter>
-+        </activity-alias>
-+
-+        <activity-alias
-+            android:name=".MainActivityLogo7"
-+            android:enabled="false"
-+            android:exported="true"
-+            android:icon="@drawable/n7"
-+            android:label="NFile"
-+            android:targetActivity=".MainActivity">
-+            <intent-filter>
-+                <action android:name="android.intent.action.MAIN" />
-+                <category android:name="android.intent.category.LAUNCHER" />
-+            </intent-filter>
-+        </activity-alias>
-+
          <!-- Flutter plugin registration metadata -->
          <meta-data
              android:name="flutterEmbedding"
-@@ -178,7 +217,7 @@
+@@ -178,7 +190,7 @@
  
          <provider
              android:name=".NFileDocumentsProvider"
@@ -57,7 +30,7 @@ index bdd9e2b..22b812c 100644
              android:exported="true"
              android:grantUriPermissions="true"
              android:permission="android.permission.MANAGE_DOCUMENTS">
-@@ -217,6 +256,15 @@
+@@ -217,6 +229,15 @@
                  <action android:name="android.intent.action.MEDIA_BUTTON" />
              </intent-filter>
          </receiver>
@@ -311,10 +284,10 @@ index 04c3853..08f1d63 100644
                ],
              ),
 diff --git a/lib/providers/file_manager_provider.dart b/lib/providers/file_manager_provider.dart
-index 2b51cdc..c64e1aa 100644
+index 2b51cdc..9655f3d 100644
 --- a/lib/providers/file_manager_provider.dart
 +++ b/lib/providers/file_manager_provider.dart
-@@ -122,12 +122,24 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -122,12 +122,15 @@ class FileManagerProvider extends ChangeNotifier {
      _showDragDropDialog = PreferencesService.getShowDragDropDialog();
      _use24HourFormat = PreferencesService.getUse24HourFormat();
      _hideTimeAndDate = PreferencesService.getHideTimeAndDate();
@@ -325,21 +298,12 @@ index 2b51cdc..c64e1aa 100644
      _hideActionMenuButtons = PreferencesService.getHideActionMenuButtons();
      _trailingInfoType = PreferencesService.getTrailingInfoType();
      _activeAppIcon = PreferencesService.getActiveAppIcon();
-+    if (!_iconPairs.containsKey(_activeAppIcon)) {
-+      if (_activeAppIcon == 'logo2' || _activeAppIcon == 'logo3') {
-+        _activeAppIcon = 'default';
-+      } else if (_activeAppIcon == 'logo5') {
-+        _activeAppIcon = 'logo4';
-+      } else {
-+        _activeAppIcon = 'default';
-+      }
-+    }
 +    _appIconFollowTheme = PreferencesService.getAppIconFollowTheme();
 +    _themeMode = PreferencesService.getThemeMode();
      _hideActionText = PreferencesService.getHideActionText();
      _disableLeftBackGesture = PreferencesService.getDisableLeftBackGesture();
      _rememberLastFolder = PreferencesService.getRememberLastFolder();
-@@ -153,7 +165,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -153,7 +156,7 @@ class FileManagerProvider extends ChangeNotifier {
      if (_totalStorageBytes > 0) {
        _storageVolumes = [
          StorageVolume(
@@ -348,7 +312,7 @@ index 2b51cdc..c64e1aa 100644
            path: '/storage/emulated/0',
            isInternal: true,
            totalBytes: _totalStorageBytes,
-@@ -204,12 +216,24 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -204,12 +207,15 @@ class FileManagerProvider extends ChangeNotifier {
      _showDragDropDialog = PreferencesService.getShowDragDropDialog();
      _use24HourFormat = PreferencesService.getUse24HourFormat();
      _hideTimeAndDate = PreferencesService.getHideTimeAndDate();
@@ -359,114 +323,42 @@ index 2b51cdc..c64e1aa 100644
      _hideActionMenuButtons = PreferencesService.getHideActionMenuButtons();
      _trailingInfoType = PreferencesService.getTrailingInfoType();
      _activeAppIcon = PreferencesService.getActiveAppIcon();
-+    if (!_iconPairs.containsKey(_activeAppIcon)) {
-+      if (_activeAppIcon == 'logo2' || _activeAppIcon == 'logo3') {
-+        _activeAppIcon = 'default';
-+      } else if (_activeAppIcon == 'logo5') {
-+        _activeAppIcon = 'logo4';
-+      } else {
-+        _activeAppIcon = 'default';
-+      }
-+    }
 +    _appIconFollowTheme = PreferencesService.getAppIconFollowTheme();
 +    _themeMode = PreferencesService.getThemeMode();
      _hideActionText = PreferencesService.getHideActionText();
      _disableLeftBackGesture = PreferencesService.getDisableLeftBackGesture();
      _rememberLastFolder = PreferencesService.getRememberLastFolder();
-@@ -252,24 +276,80 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -252,6 +258,20 @@ class FileManagerProvider extends ChangeNotifier {
  
    String _activeAppIcon = 'default';
    String get activeAppIcon => _activeAppIcon;
-+  static const Map<String, List<String>> _iconPairs = {
-+    'default': ['default', 'logo2'],
-+    'logo1': ['logo1', 'logo3'],
-+    'logo4': ['logo4', 'logo5'],
-+    'logo6': ['logo6', 'logo7'],
-+  };
-+
-+  static String aliasOfIcon(String id) {
-+    if (id == 'default') return 'com.rubex.nfile.MainActivityDefault';
-+    return 'com.rubex.nfile.MainActivityLogo${id.replaceAll('logo', '')}';
-+  }
-+
-+  List<String> get currentIconPair =>
-+      _iconPairs[_activeAppIcon] ?? _iconPairs['default']!;
-+
-+
-+  bool _appIconFollowTheme = false;
-+  bool get appIconFollowTheme => _appIconFollowTheme;
-+
-+  ThemeMode _themeMode = ThemeMode.system;
-+  ThemeMode get themeMode => _themeMode;
-+
-+  Future<void> setThemeMode(ThemeMode mode) async {
-+    _themeMode = mode;
-+    await PreferencesService.saveThemeMode(mode);
-+    if (_appIconFollowTheme) {
-+      final isDark = mode == ThemeMode.system
-+          ? WidgetsBinding.instance.platformDispatcher.platformBrightness ==
-+              Brightness.dark
-+          : mode == ThemeMode.dark;
-+      await syncAppIconWithTheme(isDark);
-+    }
-+    notifyListeners();
-+  }
-+
-+  Future<void> setAppIconFollowTheme(bool value) async {
-+    _appIconFollowTheme = value;
-+    await PreferencesService.saveAppIconFollowTheme(value);
-+    if (value) {
-+      await PreferencesService.saveAutoIconApplied('');
-+      await syncAppIconWithTheme(
-+        WidgetsBinding.instance.platformDispatcher.platformBrightness ==
-+            Brightness.dark,
-+      );
-+    } else {
-+      await PreferencesService.saveAutoIconApplied('');
-+      final pair = currentIconPair;
-+      await AppManagerService.changeAppIcon(aliasOfIcon(pair[0]));
-+    }
-+    notifyListeners();
-+  }
-+
-+  /// 按当前生效的深浅色切换桌面图标（浅色=每对前一个，深色=后一个）
++  /// 按当前生效的深浅色切换桌面图标：浅色=徽标2，深色=徽标3
 +  Future<void> syncAppIconWithTheme(bool isDark) async {
-+    final pair = currentIconPair;
-+    final want = isDark ? pair[1] : pair[0];
++    final want = isDark ? 'logo3' : 'logo2';
 +    if (PreferencesService.getAutoIconApplied() == want) return;
 +    await PreferencesService.saveAutoIconApplied(want);
-+    await AppManagerService.changeAppIcon(aliasOfIcon(want));
++    _activeAppIcon = want;
++    await PreferencesService.saveActiveAppIcon(want);
++    await AppManagerService.changeAppIcon(
++      want == 'logo3'
++          ? 'com.rubex.nfile.MainActivityLogo3'
++          : 'com.rubex.nfile.MainActivityLogo2',
++    );
 +    notifyListeners();
 +  }
  
    Future<void> setActiveAppIcon(String val) async {
      if (_activeAppIcon == val) return;
-     _activeAppIcon = val;
-     await PreferencesService.saveActiveAppIcon(val);
+@@ -267,6 +287,8 @@ class FileManagerProvider extends ChangeNotifier {
+       alias = 'com.rubex.nfile.MainActivityLogo3';
+     } else if (val == 'logo4') {
+       alias = 'com.rubex.nfile.MainActivityLogo4';
++    } else if (val == 'logo5') {
++      alias = 'com.rubex.nfile.MainActivityLogo5';
+     }
  
--    String alias = 'com.rubex.nfile.MainActivityDefault';
--    if (val == 'logo1') {
--      alias = 'com.rubex.nfile.MainActivityLogo1';
--    } else if (val == 'logo2') {
--      alias = 'com.rubex.nfile.MainActivityLogo2';
--    } else if (val == 'logo3') {
--      alias = 'com.rubex.nfile.MainActivityLogo3';
--    } else if (val == 'logo4') {
--      alias = 'com.rubex.nfile.MainActivityLogo4';
--    }
--
--    await AppManagerService.changeAppIcon(alias);
-+    final pair = currentIconPair;
-+    final isDark = _appIconFollowTheme &&
-+        (WidgetsBinding.instance.platformDispatcher.platformBrightness ==
-+            Brightness.dark);
-+    final want = isDark ? pair[1] : pair[0];
-+    await PreferencesService.saveAutoIconApplied(want);
-+    await AppManagerService.changeAppIcon(aliasOfIcon(want));
-     notifyListeners();
-   }
- 
-@@ -648,6 +728,15 @@ class FileManagerProvider extends ChangeNotifier {
+     await AppManagerService.changeAppIcon(alias);
+@@ -648,6 +670,15 @@ class FileManagerProvider extends ChangeNotifier {
    }
  
    bool _hideTimeAndDate = false;
@@ -482,7 +374,7 @@ index 2b51cdc..c64e1aa 100644
    bool get hideTimeAndDate => _hideTimeAndDate;
  
    void toggleHideTimeAndDate() {
-@@ -1100,7 +1189,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1100,7 +1131,7 @@ class FileManagerProvider extends ChangeNotifier {
          : tab.currentPath;
  
      // 1. Instant check from MediaProvider indexes if matching filter
@@ -491,7 +383,7 @@ index 2b51cdc..c64e1aa 100644
        final matchingDocs = <FileSystemEntity>[];
        for (final doc in mediaProvider.documents) {
          if (!isGlobal && !doc.path.startsWith(rootPath)) continue;
-@@ -1120,7 +1209,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1120,7 +1151,7 @@ class FileManagerProvider extends ChangeNotifier {
        }
      }
  
@@ -500,7 +392,7 @@ index 2b51cdc..c64e1aa 100644
        for (final song in mediaProvider.audios) {
          final path = song.data;
          if (!isGlobal && !path.startsWith(rootPath)) continue;
-@@ -1181,15 +1270,15 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1181,15 +1212,15 @@ class FileManagerProvider extends ChangeNotifier {
            bool matchFilter = false;
            if (filter == 'All') {
              matchFilter = true;
@@ -521,7 +413,7 @@ index 2b51cdc..c64e1aa 100644
              matchFilter = true;
            }
  
-@@ -1453,7 +1542,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1453,7 +1484,7 @@ class FileManagerProvider extends ChangeNotifier {
    Future<void> _detectStorageVolumes() async {
      final volumes = <StorageVolume>[];
      if (Platform.isAndroid) {
@@ -530,7 +422,7 @@ index 2b51cdc..c64e1aa 100644
  
        try {
          final extDirs = await getExternalStorageDirectories();
-@@ -1463,7 +1552,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1463,7 +1494,7 @@ class FileManagerProvider extends ChangeNotifier {
              if (path.contains('/Android/')) {
                final root = path.substring(0, path.indexOf('/Android/'));
                if (root != '/storage/emulated/0' && root != '/storage/emulated') {
@@ -539,7 +431,7 @@ index 2b51cdc..c64e1aa 100644
                  if (!volumes.any((v) => v.path == root)) {
                    volumes.add(StorageVolume(name: name, path: root, isInternal: false));
                  }
-@@ -1482,7 +1571,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1482,7 +1513,7 @@ class FileManagerProvider extends ChangeNotifier {
                final base = p.basename(entity.path);
                if (base != 'emulated' && base != 'self' && base != 'enterprise') {
                  if (!volumes.any((v) => v.path == entity.path)) {
@@ -548,7 +440,7 @@ index 2b51cdc..c64e1aa 100644
                    volumes.add(StorageVolume(name: name, path: entity.path, isInternal: false));
                  }
                }
-@@ -1492,13 +1581,28 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1492,13 +1523,28 @@ class FileManagerProvider extends ChangeNotifier {
        } catch (_) {}
      } else {
        final dir = await getApplicationDocumentsDirectory();
@@ -579,7 +471,7 @@ index 2b51cdc..c64e1aa 100644
      String initialPath = '/';
      if (Platform.isAndroid) {
        initialPath = '/storage/emulated/0';
-@@ -1912,7 +2016,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1912,7 +1958,7 @@ class FileManagerProvider extends ChangeNotifier {
          if (context.mounted) {
            ScaffoldMessenger.of(context).showSnackBar(
              SnackBar(
@@ -588,7 +480,7 @@ index 2b51cdc..c64e1aa 100644
                behavior: SnackBarBehavior.floating,
              ),
            );
-@@ -1922,7 +2026,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1922,7 +1968,7 @@ class FileManagerProvider extends ChangeNotifier {
          if (context.mounted) {
            ScaffoldMessenger.of(context).showSnackBar(
              SnackBar(
@@ -597,7 +489,7 @@ index 2b51cdc..c64e1aa 100644
                backgroundColor: Colors.redAccent,
                behavior: SnackBarBehavior.floating,
              ),
-@@ -1951,8 +2055,8 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -1951,8 +1997,8 @@ class FileManagerProvider extends ChangeNotifier {
            if (context.mounted) {
              await FileActionDialogs.showWarningDialog(
                context,
@@ -608,7 +500,7 @@ index 2b51cdc..c64e1aa 100644
              );
            }
            clearClipboard();
-@@ -2028,7 +2132,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2028,7 +2074,7 @@ class FileManagerProvider extends ChangeNotifier {
        progressNotifier.value = FileOperationProgress(
          totalFiles: totalFiles,
          currentFileIndex: 1,
@@ -617,7 +509,7 @@ index 2b51cdc..c64e1aa 100644
          percentage: 0.0,
          speedMBs: 0.0,
          eta: Duration.zero,
-@@ -2043,7 +2147,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2043,7 +2089,7 @@ class FileManagerProvider extends ChangeNotifier {
        // 3. Process items sequentially
        for (int i = 0; i < itemsToProcess.length; i++) {
          if (_isOperationCancelled) {
@@ -626,7 +518,7 @@ index 2b51cdc..c64e1aa 100644
          }
  
          final item = itemsToProcess[i];
-@@ -2105,7 +2209,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2105,7 +2151,7 @@ class FileManagerProvider extends ChangeNotifier {
            }
  
            if (resolution == ConflictResult.cancel) {
@@ -635,7 +527,7 @@ index 2b51cdc..c64e1aa 100644
            } else if (resolution == ConflictResult.skip) {
              shouldProcess = false;
              skippedPaths.add(destPath);
-@@ -2316,7 +2420,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2316,7 +2362,7 @@ class FileManagerProvider extends ChangeNotifier {
        if (context.mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
            SnackBar(
@@ -644,7 +536,7 @@ index 2b51cdc..c64e1aa 100644
              backgroundColor: Colors.redAccent,
              behavior: SnackBarBehavior.floating,
            ),
-@@ -2332,7 +2436,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2332,7 +2378,7 @@ class FileManagerProvider extends ChangeNotifier {
        progressNotifier.value = FileOperationProgress(
          totalFiles: totalFiles,
          currentFileIndex: 1,
@@ -653,7 +545,7 @@ index 2b51cdc..c64e1aa 100644
          percentage: 0.0,
          speedMBs: 0.0,
          eta: Duration.zero,
-@@ -2344,7 +2448,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2344,7 +2390,7 @@ class FileManagerProvider extends ChangeNotifier {
  
        for (int i = 0; i < _remoteClipboardItems.length; i++) {
          if (_isOperationCancelled) {
@@ -662,7 +554,7 @@ index 2b51cdc..c64e1aa 100644
          }
  
          final remoteItem = _remoteClipboardItems[i];
-@@ -2390,7 +2494,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2390,7 +2436,7 @@ class FileManagerProvider extends ChangeNotifier {
        if (context.mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
            SnackBar(
@@ -671,7 +563,7 @@ index 2b51cdc..c64e1aa 100644
              behavior: SnackBarBehavior.floating,
            ),
          );
-@@ -2400,8 +2504,8 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2400,8 +2446,8 @@ class FileManagerProvider extends ChangeNotifier {
        if (context.mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
            SnackBar(
@@ -682,7 +574,7 @@ index 2b51cdc..c64e1aa 100644
              behavior: SnackBarBehavior.floating,
            ),
          );
-@@ -2429,7 +2533,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2429,7 +2475,7 @@ class FileManagerProvider extends ChangeNotifier {
      final List<RemoteFileItem> remoteItems = await client.listDirectory(remoteDirPath);
      for (final item in remoteItems) {
        if (_isOperationCancelled) {
@@ -691,7 +583,7 @@ index 2b51cdc..c64e1aa 100644
        }
        final destPath = p.join(localDirPath, item.name);
        if (item.isDirectory) {
-@@ -2528,7 +2632,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2528,7 +2574,7 @@ class FileManagerProvider extends ChangeNotifier {
            if (await destination.exists()) {
              await destination.delete();
            }
@@ -700,7 +592,7 @@ index 2b51cdc..c64e1aa 100644
          }
          writer.add(chunk);
          onChunkCopied(chunk.length);
-@@ -2673,8 +2777,8 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2673,8 +2719,8 @@ class FileManagerProvider extends ChangeNotifier {
          if (context != null && context.mounted) {
            await FileActionDialogs.showWarningDialog(
              context,
@@ -711,7 +603,7 @@ index 2b51cdc..c64e1aa 100644
            );
          }
          selectedPaths.clear();
-@@ -2822,8 +2926,8 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2822,8 +2868,8 @@ class FileManagerProvider extends ChangeNotifier {
              '_id': i,
              '_data': file.path,
              'title': p.basenameWithoutExtension(file.path),
@@ -722,7 +614,7 @@ index 2b51cdc..c64e1aa 100644
              'duration': 0,
              'size': file.size,
              'display_name': p.basename(file.path),
-@@ -2958,7 +3062,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -2958,7 +3004,7 @@ class FileManagerProvider extends ChangeNotifier {
  
      if (sourcePath == destPath || destFolderPath.startsWith(sourcePath + p.separator)) {
        ScaffoldMessenger.of(context).showSnackBar(
@@ -731,7 +623,7 @@ index 2b51cdc..c64e1aa 100644
        );
        return;
      }
-@@ -3006,14 +3110,14 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -3006,14 +3052,14 @@ class FileManagerProvider extends ChangeNotifier {
        
        if (showToast) {
          ScaffoldMessenger.of(context).showSnackBar(
@@ -748,7 +640,7 @@ index 2b51cdc..c64e1aa 100644
          );
        }
      }
-@@ -3039,7 +3143,7 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -3039,7 +3085,7 @@ class FileManagerProvider extends ChangeNotifier {
  
      if (sourcePath == destPath || destFolderPath.startsWith(sourcePath + p.separator)) {
        ScaffoldMessenger.of(context).showSnackBar(
@@ -757,7 +649,7 @@ index 2b51cdc..c64e1aa 100644
        );
        return;
      }
-@@ -3077,14 +3181,14 @@ class FileManagerProvider extends ChangeNotifier {
+@@ -3077,14 +3123,14 @@ class FileManagerProvider extends ChangeNotifier {
        
        if (showToast) {
          ScaffoldMessenger.of(context).showSnackBar(
@@ -2703,7 +2595,7 @@ index 01777e3..947b877 100644
                        color: _showFoldersMode ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant,
                        fontSize: 13,
 diff --git a/lib/ui/screens/more_settings_screen.dart b/lib/ui/screens/more_settings_screen.dart
-index bd359fd..c1549d5 100644
+index bd359fd..69fda3c 100644
 --- a/lib/ui/screens/more_settings_screen.dart
 +++ b/lib/ui/screens/more_settings_screen.dart
 @@ -1,5 +1,6 @@
@@ -4424,12 +4316,12 @@ index bd359fd..c1549d5 100644
                ],
              ),
              content: SizedBox(
-@@ -2340,71 +2530,76 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2340,26 +2530,20 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                  mainAxisSize: MainAxisSize.min,
                  children: [
                    const Text(
 -                    'Choose a custom logo for the application launcher icon. Note that some launchers may take a few seconds to update.',
-+                    '每个徽标都成对提供：浅色模式用左边那个，深色模式自动切到右边那个。部分桌面可能需要几秒钟才会更新。',
++                    '选择一个自定义徽标。部分桌面可能需要几秒钟才会更新。',
                      style: TextStyle(fontSize: 13, height: 1.3, color: Colors.grey),
                    ),
                    const SizedBox(height: 20),
@@ -4450,54 +4342,53 @@ index bd359fd..c1549d5 100644
                              theme,
                              id: 'default',
 -                            title: 'Logo',
--                            imagePath: 'assets/ic_launcher.webp',
-+                            title: '默认 / 徽标 2',
-+                            lightImagePath: 'assets/ic_launcher.webp',
-+                            darkImagePath: 'assets/logo/n2.png',
++                            title: '默认',
+                             imagePath: 'assets/ic_launcher.webp',
                            ),
                            _buildIconOptionCard(
-                             context,
+@@ -2367,7 +2551,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
                              id: 'logo1',
 -                            title: 'Logo 1',
--                            imagePath: 'assets/logo/n1.png',
--                          ),
--                          _buildIconOptionCard(
--                            context,
--                            fileManager,
--                            theme,
--                            id: 'logo2',
++                            title: '徽标 1',
+                             imagePath: 'assets/logo/n1.png',
+                           ),
+                           _buildIconOptionCard(
+@@ -2375,7 +2559,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+                             fileManager,
+                             theme,
+                             id: 'logo2',
 -                            title: 'Logo 2',
--                            imagePath: 'assets/logo/n2.png',
-+                            title: '徽标 1 / 徽标 3',
-+                            lightImagePath: 'assets/logo/n1.png',
-+                            darkImagePath: 'assets/logo/n3.png',
++                            title: '徽标 2',
+                             imagePath: 'assets/logo/n2.png',
                            ),
                            _buildIconOptionCard(
-                             context,
+@@ -2383,7 +2567,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
--                            id: 'logo3',
+                             id: 'logo3',
 -                            title: 'Logo 3',
--                            imagePath: 'assets/logo/n3.png',
-+                            id: 'logo4',
-+                            title: '徽标 4 / 徽标 5',
-+                            lightImagePath: 'assets/logo/n4.png',
-+                            darkImagePath: 'assets/logo/n5.png',
++                            title: '徽标 3',
+                             imagePath: 'assets/logo/n3.png',
                            ),
                            _buildIconOptionCard(
-                             context,
+@@ -2391,20 +2575,43 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
--                            id: 'logo4',
+                             id: 'logo4',
 -                            title: 'Logo 4',
--                            imagePath: 'assets/logo/n4.png',
-+                            id: 'logo6',
-+                            title: '徽标 6（莫奈）',
-+                            lightImagePath: 'assets/logo/n6.png',
-+                            darkImagePath: 'assets/logo/n7.png',
++                            title: '徽标 4',
+                             imagePath: 'assets/logo/n4.png',
                            ),
++                          _buildIconOptionCard(
++                            context,
++                            fileManager,
++                            theme,
++                            id: 'logo5',
++                            title: '徽标 5（莫奈）',
++                            imagePath: 'assets/logo/n5.png',
++                          ),
                          ],
                        ),
                      ),
@@ -4512,7 +4403,7 @@ index bd359fd..c1549d5 100644
 +                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
 +                    ),
 +                    subtitle: const Text(
-+                      '按系统深浅色自动在每对图标之间切换',
++                      '浅色模式用徽标 2，深色模式用徽标 3',
 +                      style: TextStyle(fontSize: 12),
 +                    ),
 +                  ),
@@ -4528,13 +4419,7 @@ index bd359fd..c1549d5 100644
                ),
              ],
            ),
-@@ -2420,63 +2615,106 @@ Widget _buildIconOptionCard(
-   ThemeData theme, {
-   required String id,
-   required String title,
--  required String imagePath,
-+  required String lightImagePath,
-+  required String darkImagePath,
+@@ -2424,59 +2631,76 @@ Widget _buildIconOptionCard(
  }) {
    final isSelected = fileManager.activeAppIcon == id;
  
@@ -4546,7 +4431,23 @@ index bd359fd..c1549d5 100644
 -      side: BorderSide(
 -        color: isSelected ? theme.colorScheme.primary : theme.dividerColor.withOpacity(0.08),
 -        width: isSelected ? 2.0 : 1.0,
--      ),
++  return Padding(
++    padding: const EdgeInsets.only(bottom: 10),
++    child: Card(
++      margin: EdgeInsets.zero,
++      color: isSelected
++          ? theme.colorScheme.primaryContainer.withOpacity(0.4)
++          : theme.colorScheme.surfaceVariant.withOpacity(0.15),
++      elevation: 0,
++      shape: RoundedRectangleBorder(
++        borderRadius: BorderRadius.circular(16),
++        side: BorderSide(
++          color: isSelected
++              ? theme.colorScheme.primary
++              : theme.dividerColor.withOpacity(0.08),
++          width: isSelected ? 2.0 : 1.0,
++        ),
+       ),
 -    ),
 -    child: InkWell(
 -      onTap: () {
@@ -4556,19 +4457,7 @@ index bd359fd..c1549d5 100644
 -            content: Text('App icon switched to $title successfully!'),
 -            behavior: SnackBarBehavior.floating,
 -            duration: const Duration(seconds: 2),
-+  Widget _img(String path) => ClipRRect(
-+        borderRadius: BorderRadius.circular(12),
-+        child: Image.asset(
-+          path,
-+          width: 48,
-+          height: 48,
-+          fit: BoxFit.cover,
-+          errorBuilder: (_, __, ___) => Container(
-+            width: 48,
-+            height: 48,
-+            color: Colors.grey.withOpacity(0.2),
-+            child: const Icon(Icons.broken_image, size: 20),
-           ),
+-          ),
 -        );
 -      },
 -      borderRadius: BorderRadius.circular(16),
@@ -4589,32 +4478,12 @@ index bd359fd..c1549d5 100644
 -                  height: 56,
 -                  color: Colors.grey.withOpacity(0.2),
 -                  child: const Icon(Icons.broken_image, size: 24),
-+        ),
-+      );
-+
-+  return Padding(
-+    padding: const EdgeInsets.only(bottom: 10),
-+    child: Card(
-+      margin: EdgeInsets.zero,
-+      color: isSelected
-+          ? theme.colorScheme.primaryContainer.withOpacity(0.4)
-+          : theme.colorScheme.surfaceVariant.withOpacity(0.15),
-+      elevation: 0,
-+      shape: RoundedRectangleBorder(
-+        borderRadius: BorderRadius.circular(16),
-+        side: BorderSide(
-+          color: isSelected
-+              ? theme.colorScheme.primary
-+              : theme.dividerColor.withOpacity(0.08),
-+          width: isSelected ? 2.0 : 1.0,
-+        ),
-+      ),
 +      child: InkWell(
 +        onTap: () {
 +          fileManager.setActiveAppIcon(id);
 +          ScaffoldMessenger.of(context).showSnackBar(
 +            SnackBar(
-+              content: Text('已选择 $title，将按深浅色自动切换'),
++              content: Text('应用图标已切换为 $title'),
 +              behavior: SnackBarBehavior.floating,
 +              duration: const Duration(seconds: 2),
 +            ),
@@ -4625,13 +4494,19 @@ index bd359fd..c1549d5 100644
 +          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
 +          child: Row(
 +            children: [
-+              _img(lightImagePath),
-+              Padding(
-+                padding: const EdgeInsets.symmetric(horizontal: 6),
-+                child: Icon(
-+                  Icons.swap_horiz_rounded,
-+                  size: 16,
-+                  color: theme.colorScheme.onSurfaceVariant,
++              ClipRRect(
++                borderRadius: BorderRadius.circular(12),
++                child: Image.asset(
++                  imagePath,
++                  width: 48,
++                  height: 48,
++                  fit: BoxFit.cover,
++                  errorBuilder: (_, __, ___) => Container(
++                    width: 48,
++                    height: 48,
++                    color: Colors.grey.withOpacity(0.2),
++                    child: const Icon(Icons.broken_image, size: 20),
++                  ),
                  ),
                ),
 -            ),
@@ -4642,33 +4517,18 @@ index bd359fd..c1549d5 100644
 -                fontSize: 12,
 -                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
 -                color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
-+              _img(darkImagePath),
 +              const SizedBox(width: 14),
 +              Expanded(
-+                child: Column(
-+                  crossAxisAlignment: CrossAxisAlignment.start,
-+                  mainAxisSize: MainAxisSize.min,
-+                  children: [
-+                    Text(
-+                      title,
-+                      style: TextStyle(
-+                        fontSize: 14,
-+                        fontWeight:
-+                            isSelected ? FontWeight.bold : FontWeight.w500,
-+                        color: isSelected
-+                            ? theme.colorScheme.primary
-+                            : theme.colorScheme.onSurface,
-+                      ),
-+                    ),
-+                    const SizedBox(height: 2),
-+                    Text(
-+                      '左：浅色　右：深色',
-+                      style: TextStyle(
-+                        fontSize: 11,
-+                        color: theme.colorScheme.onSurfaceVariant,
-+                      ),
-+                    ),
-+                  ],
++                child: Text(
++                  title,
++                  style: TextStyle(
++                    fontSize: 15,
++                    fontWeight:
++                        isSelected ? FontWeight.bold : FontWeight.w500,
++                    color: isSelected
++                        ? theme.colorScheme.primary
++                        : theme.colorScheme.onSurface,
++                  ),
 +                ),
                ),
 -              textAlign: TextAlign.center,
@@ -4685,7 +4545,7 @@ index bd359fd..c1549d5 100644
          ),
        ),
      ),
-@@ -2493,13 +2731,13 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2493,13 +2717,13 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
        final current = fileManager.fontFamilyOption;
        final hasCustomFont = fileManager.customFontPath != null;
        final options = [
@@ -4705,7 +4565,7 @@ index bd359fd..c1549d5 100644
        ];
  
        return SafeArea(
-@@ -2520,12 +2758,12 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2520,12 +2744,12 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                    ),
                    const SizedBox(height: 16),
                    Text(
@@ -4720,7 +4580,7 @@ index bd359fd..c1549d5 100644
                      style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6), fontSize: 13, fontFamily: 'LexendDeca'),
                    ),
                    const SizedBox(height: 16),
-@@ -2565,7 +2803,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2565,7 +2789,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                    OutlinedButton.icon(
                      icon: const Icon(Broken.document_upload, size: 20),
                      label: Text(
@@ -4729,7 +4589,7 @@ index bd359fd..c1549d5 100644
                        style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'LexendDeca'),
                      ),
                      style: OutlinedButton.styleFrom(
-@@ -2589,13 +2827,13 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2589,13 +2813,13 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                              fileManager.setFontFamilyOption('custom');
                              if (context.mounted) {
                                ScaffoldMessenger.of(context).showSnackBar(
@@ -4745,7 +4605,7 @@ index bd359fd..c1549d5 100644
                                );
                              }
                            }
-@@ -2604,8 +2842,8 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2604,8 +2828,8 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                              showDialog(
                                context: context,
                                builder: (context) => AlertDialog(
@@ -4756,7 +4616,7 @@ index bd359fd..c1549d5 100644
                                  actions: [
                                    TextButton(
                                      onPressed: () => Navigator.pop(context),
-@@ -2623,7 +2861,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2623,7 +2847,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                      const SizedBox(height: 8),
                      TextButton.icon(
                        icon: const Icon(Broken.trash, size: 18, color: Colors.redAccent),
@@ -4765,7 +4625,7 @@ index bd359fd..c1549d5 100644
                        onPressed: () async {
                          Navigator.pop(ctx);
                          await fileManager.setCustomFontPath(null);
-@@ -2632,7 +2870,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2632,7 +2856,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                          }
                          if (context.mounted) {
                            ScaffoldMessenger.of(context).showSnackBar(
@@ -4774,7 +4634,7 @@ index bd359fd..c1549d5 100644
                            );
                          }
                        },
-@@ -2656,10 +2894,10 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
+@@ -2656,10 +2880,10 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
      builder: (ctx) {
        final current = RecycleBinService.getAutoDeleteDays();
        final options = [
@@ -4789,7 +4649,7 @@ index bd359fd..c1549d5 100644
        ];
  
        return SafeArea(
-@@ -2683,7 +2921,7 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
+@@ -2683,7 +2907,7 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
                Padding(
                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
                  child: Text(
@@ -4798,7 +4658,7 @@ index bd359fd..c1549d5 100644
                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, fontSize: 18),
                  ),
                ),
-@@ -2691,7 +2929,7 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
+@@ -2691,7 +2915,7 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
                Padding(
                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
                  child: Text(
