@@ -55,10 +55,10 @@ index bdd9e2b..785f89f 100644
      <!-- Package visibility queries for Android 11+ -->
      <queries>
 diff --git a/android/app/src/main/kotlin/com/rubex/nfile/MainActivity.kt b/android/app/src/main/kotlin/com/rubex/nfile/MainActivity.kt
-index c67c7b8..0f14f1c 100644
+index c67c7b8..f65a6e5 100644
 --- a/android/app/src/main/kotlin/com/rubex/nfile/MainActivity.kt
 +++ b/android/app/src/main/kotlin/com/rubex/nfile/MainActivity.kt
-@@ -610,6 +610,46 @@ class MainActivity : AudioServiceFragmentActivity() {
+@@ -610,6 +610,58 @@ class MainActivity : AudioServiceFragmentActivity() {
              }
          }
  
@@ -86,9 +86,21 @@ index c67c7b8..0f14f1c 100644
 +                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 +                        clipData = android.content.ClipData.newRawUri(null, uri)
 +                    }
++                    // 优先直装：显式拉起 InstallerX（Revived），未安装时退回系统选择器
++                    val installerX = Intent(intent).apply {
++                        setClassName(
++                            "com.rosan.installer.x.revived",
++                            "com.rosan.installer.ui.activity.InstallerActivity"
++                        )
++                    }
 +                    runOnUiThread {
 +                        try {
-+                            startActivity(Intent.createChooser(intent, "选择安装器"))
++                            val handler = packageManager.resolveActivity(installerX, 0)
++                            if (handler != null) {
++                                startActivity(installerX)
++                            } else {
++                                startActivity(Intent.createChooser(intent, "选择安装器"))
++                            }
 +                            result.success(true)
 +                        } catch (e: Exception) {
 +                            result.error("NO_HANDLER", e.message, null)
