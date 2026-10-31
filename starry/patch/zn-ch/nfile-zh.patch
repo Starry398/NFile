@@ -26,7 +26,7 @@ index df186c1..7701553 100644
              isShrinkResources = true
              proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
 diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
-index bdd9e2b..e5d3656 100644
+index bdd9e2b..785f89f 100644
 --- a/android/app/src/main/AndroidManifest.xml
 +++ b/android/app/src/main/AndroidManifest.xml
 @@ -178,7 +178,7 @@
@@ -38,6 +38,73 @@ index bdd9e2b..e5d3656 100644
              android:exported="true"
              android:grantUriPermissions="true"
              android:permission="android.permission.MANAGE_DOCUMENTS">
+@@ -217,6 +217,15 @@
+                 <action android:name="android.intent.action.MEDIA_BUTTON" />
+             </intent-filter>
+         </receiver>
++        <provider
++            android:name="androidx.core.content.FileProvider"
++            android:authorities="${applicationId}.apkinstaller"
++            android:exported="false"
++            android:grantUriPermissions="true">
++            <meta-data
++                android:name="android.support.FILE_PROVIDER_PATHS"
++                android:resource="@xml/apk_paths" />
++        </provider>
+     </application>
+     <!-- Package visibility queries for Android 11+ -->
+     <queries>
+diff --git a/android/app/src/main/kotlin/com/rubex/nfile/MainActivity.kt b/android/app/src/main/kotlin/com/rubex/nfile/MainActivity.kt
+index c67c7b8..0f14f1c 100644
+--- a/android/app/src/main/kotlin/com/rubex/nfile/MainActivity.kt
++++ b/android/app/src/main/kotlin/com/rubex/nfile/MainActivity.kt
+@@ -610,6 +610,46 @@ class MainActivity : AudioServiceFragmentActivity() {
+             }
+         }
+ 
++        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.rubex.nfile/install_apk").setMethodCallHandler { call, result ->
++            if (call.method == "install") {
++                val path = call.argument<String>("path")
++                if (path.isNullOrEmpty()) {
++                    result.error("ARGS", "path is null", null)
++                    return@setMethodCallHandler
++                }
++                val file = File(path)
++                if (!file.exists()) {
++                    result.error("NOT_FOUND", "apk not found: $path", null)
++                    return@setMethodCallHandler
++                }
++                try {
++                    val uri = androidx.core.content.FileProvider.getUriForFile(
++                        this,
++                        "$packageName.apkinstaller",
++                        file
++                    )
++                    val intent = Intent(Intent.ACTION_VIEW).apply {
++                        setDataAndType(uri, "application/vnd.android.package-archive")
++                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
++                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
++                        clipData = android.content.ClipData.newRawUri(null, uri)
++                    }
++                    runOnUiThread {
++                        try {
++                            startActivity(Intent.createChooser(intent, "选择安装器"))
++                            result.success(true)
++                        } catch (e: Exception) {
++                            result.error("NO_HANDLER", e.message, null)
++                        }
++                    }
++                } catch (e: Exception) {
++                    result.error("ERROR", e.message, null)
++                }
++            } else {
++                result.notImplemented()
++            }
++        }
++
+         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.rubex.nfile/gesture_exclusion").setMethodCallHandler { call, result ->
+             if (call.method == "setSystemGestureExclusionRects") {
+                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 diff --git a/android/app/src/main/res/drawable-v21/launch_background.xml b/android/app/src/main/res/drawable-v21/launch_background.xml
 index f74085f..fd06659 100644
 --- a/android/app/src/main/res/drawable-v21/launch_background.xml
@@ -84,6 +151,19 @@ index 0000000..9d3c676
 +<resources>
 +    <color name="splash_bg">#F9F9FF</color>
 +</resources>
+diff --git a/android/app/src/main/res/xml/apk_paths.xml b/android/app/src/main/res/xml/apk_paths.xml
+new file mode 100644
+index 0000000..4b4771a
+--- /dev/null
++++ b/android/app/src/main/res/xml/apk_paths.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<paths>
++    <external-path name="sdcard" path="." />
++    <root-path name="root" path="." />
++    <files-path name="files" path="." />
++    <cache-path name="cache" path="." />
++</paths>
 diff --git a/lib/core/utils.dart b/lib/core/utils.dart
 index 26bee2a..294ca1e 100644
 --- a/lib/core/utils.dart
@@ -1025,6 +1105,31 @@ index aba1aa5..2fec2b1 100644
  
      await _saveCache();
      notifyListeners();
+diff --git a/lib/services/apk_installer_service.dart b/lib/services/apk_installer_service.dart
+index e246fb0..069bd9c 100644
+--- a/lib/services/apk_installer_service.dart
++++ b/lib/services/apk_installer_service.dart
+@@ -1,5 +1,6 @@
+ import 'dart:io';
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
+ import 'package:path/path.dart' as p;
+ import 'package:path_provider/path_provider.dart';
+ import 'package:open_filex/open_filex.dart';
+@@ -18,6 +19,13 @@ class ApkInstallerService {
+     final ext = p.extension(path).toLowerCase();
+ 
+     if (ext == '.apk') {
++      // 先用系统 ACTION_VIEW + FileProvider 拉出应用选择器，
++      // 这样 InstallerX / 其他第三方安装器都能被选到；失败再退回 OpenFilex。
++      try {
++        const channel = MethodChannel('com.rubex.nfile/install_apk');
++        final ok = await channel.invokeMethod<bool>('install', {'path': path});
++        if (ok == true) return;
++      } catch (_) {}
+       await OpenFilex.open(path);
+       return;
+     }
 diff --git a/lib/ui/screens/about_screen.dart b/lib/ui/screens/about_screen.dart
 index c413160..a3a1dd9 100644
 --- a/lib/ui/screens/about_screen.dart
@@ -2028,7 +2133,7 @@ index e5608b8..22f22e5 100644
                            ),
                          ),
 diff --git a/lib/ui/screens/directory_screen.dart b/lib/ui/screens/directory_screen.dart
-index bb29a79..38db839 100644
+index bb29a79..c349782 100644
 --- a/lib/ui/screens/directory_screen.dart
 +++ b/lib/ui/screens/directory_screen.dart
 @@ -55,11 +55,11 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
@@ -2510,8 +2615,22 @@ index bb29a79..38db839 100644
                                    style: TextStyle(fontWeight: FontWeight.w600),
                                  ),
                                ],
-@@ -1724,12 +1724,12 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -1722,14 +1722,26 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+                           provider.toggleSearchForActiveTab();
+                         },
                        ),
++                      IconButton(
++                        icon: Icon(
++                          provider.enableSplitScreen
++                              ? Icons.splitscreen
++                              : Icons.splitscreen_outlined,
++                          color: provider.enableSplitScreen
++                              ? Theme.of(context).colorScheme.primary
++                              : null,
++                        ),
++                        tooltip: '分屏',
++                        onPressed: () => provider.toggleSplitScreen(),
++                      ),
                        IconButton(
                          icon: const Icon(Broken.filter_edit),
 -                        tooltip: 'View & Sort Options',
@@ -2525,7 +2644,7 @@ index bb29a79..38db839 100644
                          shape: RoundedRectangleBorder(
                            borderRadius: BorderRadius.circular(16),
                          ),
-@@ -1745,7 +1745,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -1745,7 +1757,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                  Icon(Broken.document, size: 20),
                                  SizedBox(width: 12),
                                  Text(
@@ -2534,7 +2653,7 @@ index bb29a79..38db839 100644
                                    style: TextStyle(fontWeight: FontWeight.w600),
                                  ),
                                ],
-@@ -1771,7 +1771,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -1771,7 +1783,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                  Icon(Broken.archive, size: 20),
                                  SizedBox(width: 12),
                                  Text(
@@ -2543,7 +2662,7 @@ index bb29a79..38db839 100644
                                    style: TextStyle(fontWeight: FontWeight.w600),
                                  ),
                                ],
-@@ -1865,9 +1865,10 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -1865,9 +1877,10 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                    Expanded(child: PaneBrowser(tabIndex: 1)),
                                  ],
                                )
@@ -2557,7 +2676,7 @@ index bb29a79..38db839 100644
                              : provider.needsPermission
                              ? RestrictedFolderBanner(
                                  onEnableRoot: () => provider.enableRootMode(),
-@@ -1922,7 +1923,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -1922,7 +1935,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                              ),
                                              const SizedBox(width: 6),
                                              Text(
@@ -2566,7 +2685,7 @@ index bb29a79..38db839 100644
                                                style: TextStyle(
                                                  fontSize: 13,
                                                  fontWeight: FontWeight.w600,
-@@ -1943,7 +1944,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -1943,7 +1956,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                              ),
                                              const SizedBox(width: 6),
                                              Text(
@@ -2575,7 +2694,7 @@ index bb29a79..38db839 100644
                                                style: TextStyle(
                                                  fontSize: 13,
                                                  fontWeight: FontWeight.w600,
-@@ -2024,8 +2025,8 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2024,8 +2037,8 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                                                          .activeTab
                                                                          .currentPath
                                                                          .isEmpty
@@ -2586,7 +2705,7 @@ index bb29a79..38db839 100644
                                                              style: Theme.of(context)
                                                                  .textTheme
                                                                  .titleLarge
-@@ -2052,8 +2053,8 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2052,8 +2065,8 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                                                          .activeTab
                                                                          .currentPath
                                                                          .isEmpty
@@ -2597,7 +2716,7 @@ index bb29a79..38db839 100644
                                                              textAlign: TextAlign
                                                                  .center,
                                                              style: Theme.of(context)
-@@ -2110,7 +2111,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2110,7 +2123,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                                              height: 24,
                                                            ),
                                                            Text(
@@ -2606,7 +2725,7 @@ index bb29a79..38db839 100644
                                                              style: Theme.of(context)
                                                                  .textTheme
                                                                  .titleLarge
-@@ -2127,7 +2128,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2127,7 +2140,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                                              height: 8,
                                                            ),
                                                            Text(
@@ -2615,7 +2734,7 @@ index bb29a79..38db839 100644
                                                              textAlign: TextAlign
                                                                  .center,
                                                              style: Theme.of(context)
-@@ -2169,7 +2170,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2169,7 +2182,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                                      ),
                                                      const SizedBox(height: 24),
                                                      Text(
@@ -2624,7 +2743,7 @@ index bb29a79..38db839 100644
                                                        style: Theme.of(context)
                                                            .textTheme
                                                            .titleLarge
-@@ -2186,7 +2187,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2186,7 +2199,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                                      ),
                                                      const SizedBox(height: 8),
                                                      Text(
@@ -2633,7 +2752,7 @@ index bb29a79..38db839 100644
                                                        textAlign:
                                                            TextAlign.center,
                                                        style: Theme.of(context)
-@@ -2523,7 +2524,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2523,7 +2536,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                        provider.clearClipboard();
                        ScaffoldMessenger.of(context).showSnackBar(
                          const SnackBar(
@@ -2642,7 +2761,7 @@ index bb29a79..38db839 100644
                            behavior: SnackBarBehavior.floating,
                          ),
                        );
-@@ -2535,7 +2536,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2535,7 +2548,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                          ScaffoldMessenger.of(context).showSnackBar(
                            const SnackBar(
                              content: Text(
@@ -2651,7 +2770,7 @@ index bb29a79..38db839 100644
                              ),
                              behavior: SnackBarBehavior.floating,
                            ),
-@@ -2552,14 +2553,14 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2552,14 +2565,14 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                          if (context.mounted) {
                            ScaffoldMessenger.of(context).showSnackBar(
                              const SnackBar(
@@ -2668,7 +2787,7 @@ index bb29a79..38db839 100644
                      ),
                    ),
                  );
-@@ -2600,7 +2601,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2600,7 +2613,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                        children: [
                          IconButton(
                            icon: const Icon(Broken.tick_square),
@@ -2677,7 +2796,7 @@ index bb29a79..38db839 100644
                            onPressed: () {
                              if (provider.currentFiles.isNotEmpty) {
                                provider.toggleSelection(
-@@ -2611,7 +2612,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2611,7 +2624,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                          ),
                          IconButton(
                            icon: const Icon(Broken.search_normal),
@@ -2686,7 +2805,7 @@ index bb29a79..38db839 100644
                            onPressed: () {
                              provider.toggleSearchForActiveTab();
                            },
-@@ -2619,12 +2620,12 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2619,12 +2632,12 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                          const SizedBox(width: 48), // Center dock slot for FAB
                          IconButton(
                            icon: const Icon(Broken.filter_edit),
@@ -2701,7 +2820,7 @@ index bb29a79..38db839 100644
                            onPressed: () =>
                                _showStorageVolumeModal(context, provider),
                          ),
-@@ -2651,27 +2652,27 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2651,27 +2664,27 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
        case FileFilterType.all:
          break;
        case FileFilterType.documents:
@@ -2734,7 +2853,7 @@ index bb29a79..38db839 100644
          icon = Broken.archive;
          color = Colors.brown;
          break;
-@@ -2692,7 +2693,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2692,7 +2705,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
              const SizedBox(width: 12),
              Expanded(
                child: Text(
@@ -2743,7 +2862,7 @@ index bb29a79..38db839 100644
                  style: TextStyle(
                    fontWeight: FontWeight.bold,
                    fontSize: 13.5,
-@@ -2720,7 +2721,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
+@@ -2720,7 +2733,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                  size: 15,
                ),
                label: Text(
@@ -2752,7 +2871,7 @@ index bb29a79..38db839 100644
                  style: TextStyle(
                    color: color,
                    fontWeight: FontWeight.bold,
-@@ -2885,7 +2886,7 @@ class _AnimatedTitleButtonState extends State<_AnimatedTitleButton>
+@@ -2885,7 +2898,7 @@ class _AnimatedTitleButtonState extends State<_AnimatedTitleButton>
                  mainAxisSize: MainAxisSize.min,
                  children: [
                    const Text(
@@ -2761,7 +2880,7 @@ index bb29a79..38db839 100644
                      style: TextStyle(
                        fontWeight: FontWeight.bold,
                        fontSize: 22,
-@@ -2914,3 +2915,32 @@ class _AnimatedTitleButtonState extends State<_AnimatedTitleButton>
+@@ -2914,3 +2927,32 @@ class _AnimatedTitleButtonState extends State<_AnimatedTitleButton>
      );
    }
  }
@@ -4303,10 +4422,10 @@ index 01777e3..8b84664 100644
                        color: _showFoldersMode ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant,
                        fontSize: 13,
 diff --git a/lib/ui/screens/more_settings_screen.dart b/lib/ui/screens/more_settings_screen.dart
-index bd359fd..b8720c0 100644
+index bd359fd..03b8809 100644
 --- a/lib/ui/screens/more_settings_screen.dart
 +++ b/lib/ui/screens/more_settings_screen.dart
-@@ -103,35 +103,35 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -103,35 +103,34 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
      final fileManager = context.watch<FileManagerProvider>();
  
      // Visibilities for global search filtering
@@ -4363,7 +4482,6 @@ index bd359fd..b8720c0 100644
 +    final dragDropVis = _shouldShow('启用拖放', '长按拖动文件夹或文件，将其移动到其他文件夹');
 +    final confirmDragVis = fileManager.enableDragDrop && _shouldShow('确认拖放操作', '拖放文件时弹出选项（复制、移动、压缩）');
 +    final multipleTabsVis = _shouldShow('启用多标签页', '允许在多个标签页中打开不同文件夹，方便快速切换');
-+    final splitScreenVis = _shouldShow('启用分屏', '并排浏览两个目录，轻松互传文件');
 +    final disableLeftBackVis = _shouldShow('左侧返回手势打开抽屉', '将屏幕左边缘从 Android 系统返回手势中排除，更容易滑出抽屉。你仍然可以从右边缘滑动返回。');
 +    final rememberLastFolderVis = _shouldShow('记住上次打开的文件夹', '启动应用时打开上次浏览的文件夹');
 +    final hideNavLabelsVis = _shouldShow('隐藏底部导航文字', '隐藏底部栏（首页/浏览）的文字标签，界面更简洁紧凑');
@@ -4371,7 +4489,7 @@ index bd359fd..b8720c0 100644
  
      final generalStartupList = [
        defaultBrowseVis,
-@@ -177,24 +177,24 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -177,24 +176,24 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
        hideActionTextVis,
      ];
  
@@ -4408,7 +4526,7 @@ index bd359fd..b8720c0 100644
  
      final hasAnyMatch = generalStartupList.contains(true) ||
          fileExplorerList.contains(true) ||
-@@ -229,7 +229,7 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -229,7 +228,7 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      fontWeight: FontWeight.w500,
                    ),
                    decoration: InputDecoration(
@@ -4417,7 +4535,7 @@ index bd359fd..b8720c0 100644
                      border: InputBorder.none,
                      hintStyle: TextStyle(
                        color: theme.colorScheme.onSurface.withOpacity(0.4),
-@@ -241,7 +241,7 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -241,7 +240,7 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      });
                    },
                  )
@@ -4426,7 +4544,7 @@ index bd359fd..b8720c0 100644
            leading: IconButton(
              icon: const NfileIcon(Broken.arrow_left),
              onPressed: () {
-@@ -291,7 +291,7 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -291,7 +290,7 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                  Padding(
                    padding: const EdgeInsets.only(bottom: 16.0, left: 4.0),
                    child: Text(
@@ -4435,7 +4553,7 @@ index bd359fd..b8720c0 100644
                      style: theme.textTheme.titleMedium?.copyWith(
                        fontWeight: FontWeight.bold,
                        color: theme.colorScheme.onSurface.withOpacity(0.8),
-@@ -302,64 +302,64 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -302,64 +301,64 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                    context,
                    theme,
                    icon: Broken.setting_2,
@@ -4516,7 +4634,7 @@ index bd359fd..b8720c0 100644
                    targetScreen: const BackupSettingsScreen(),
                  ),
                ] else ...[
-@@ -383,7 +383,7 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -383,7 +382,7 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                          ),
                          const SizedBox(height: 20),
                          Text(
@@ -4525,7 +4643,7 @@ index bd359fd..b8720c0 100644
                            style: theme.textTheme.titleMedium?.copyWith(
                              fontWeight: FontWeight.bold,
                              color: theme.colorScheme.onSurface,
-@@ -391,7 +391,7 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -391,7 +390,7 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                          ),
                          const SizedBox(height: 6),
                          Text(
@@ -4534,7 +4652,7 @@ index bd359fd..b8720c0 100644
                            style: theme.textTheme.bodyMedium?.copyWith(
                              color: theme.colorScheme.onSurface.withOpacity(0.55),
                            ),
-@@ -401,12 +401,12 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -401,12 +400,12 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                    ),
                  ] else ...[
                    if (_shouldShowHeader(generalStartupList) || _shouldShowHeader(selectionActionBarList) || _shouldShowHeader(homeScreenList)) ...[
@@ -4550,7 +4668,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -420,8 +420,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -420,8 +419,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (rememberLastFolderVis)
                        SettingsTile(
                          icon: Broken.folder_open,
@@ -4561,7 +4679,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -435,8 +435,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -435,8 +434,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (showHomeBrowseNavVis)
                        SettingsTile(
                          icon: Broken.menu,
@@ -4572,7 +4690,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -450,8 +450,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -450,8 +449,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (hideNavLabelsVis)
                        SettingsTile(
                          icon: Broken.menu_1,
@@ -4583,7 +4701,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -465,8 +465,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -465,8 +464,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (hideNavBarVis)
                        SettingsTile(
                          icon: Icons.android,
@@ -4594,7 +4712,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -480,8 +480,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -480,8 +479,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (disableLeftBackVis)
                        SettingsTile(
                          icon: Icons.gesture,
@@ -4605,7 +4723,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -495,17 +495,17 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -495,17 +494,17 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (exitOptionVis)
                        SettingsTile(
                          icon: Icons.logout_rounded,
@@ -4628,7 +4746,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -519,8 +519,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -519,8 +518,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (hideActionTextVis)
                        SettingsTile(
                          icon: Icons.label_off_rounded,
@@ -4639,7 +4757,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -534,15 +534,15 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -534,15 +533,15 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (customizeShortcutsVis)
                        SettingsTile(
                          icon: Broken.setting_2,
@@ -4659,7 +4777,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -556,33 +556,33 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -556,33 +555,33 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                    ],
                    if (_shouldShowHeader(appearanceList)) ...[
                      const SizedBox(height: 24),
@@ -4699,7 +4817,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -596,26 +596,26 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -596,26 +595,26 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (appIconVis)
                        SettingsTile(
                          icon: Broken.category,
@@ -4731,7 +4849,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -629,8 +629,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -629,8 +628,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (showFloatingVis)
                        SettingsTile(
                          icon: Broken.add_square,
@@ -4742,7 +4860,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -644,8 +644,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -644,8 +643,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (showHiddenVis)
                        SettingsTile(
                          icon: Broken.folder_open,
@@ -4753,7 +4871,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -659,8 +659,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -659,8 +658,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (highlightFolderVis)
                        SettingsTile(
                          icon: Broken.colorfilter,
@@ -4764,7 +4882,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -674,8 +674,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -674,8 +673,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (multipleTabsVis)
                        SettingsTile(
                          icon: Broken.category,
@@ -4775,18 +4893,25 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -689,8 +689,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
-                     if (splitScreenVis)
-                       SettingsTile(
-                         icon: Icons.splitscreen,
+@@ -686,26 +685,11 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+                         ),
+                         onTap: () => fileManager.toggleMultipleTabs(),
+                       ),
+-                    if (splitScreenVis)
+-                      SettingsTile(
+-                        icon: Icons.splitscreen,
 -                        title: 'Enable Split Screen',
 -                        subtitle: 'Browse two directories side by side and transfer files easily',
-+                        title: '启用分屏',
-+                        subtitle: '并排浏览两个目录，轻松互传文件',
-                         trailing: Transform.scale(
-                           scale: 0.85,
-                           child: Switch(
-@@ -704,8 +704,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+-                        trailing: Transform.scale(
+-                          scale: 0.85,
+-                          child: Switch(
+-                            value: fileManager.enableSplitScreen,
+-                            activeColor: theme.colorScheme.primary,
+-                            onChanged: (_) => fileManager.toggleSplitScreen(),
+-                          ),
+-                        ),
+-                        onTap: () => fileManager.toggleSplitScreen(),
+-                      ),
                      if (dragDropVis)
                        SettingsTile(
                          icon: Broken.folder_connection,
@@ -4797,7 +4922,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -721,8 +721,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -721,8 +705,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                          padding: const EdgeInsets.only(left: 16.0),
                          child: SettingsTile(
                            icon: Broken.task_square,
@@ -4808,7 +4933,7 @@ index bd359fd..b8720c0 100644
                            trailing: Transform.scale(
                              scale: 0.85,
                              child: Switch(
-@@ -737,12 +737,12 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -737,12 +721,12 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                    ],
                    if (_shouldShowHeader(listLayoutList)) ...[
                      const SizedBox(height: 24),
@@ -4824,7 +4949,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -756,8 +756,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -756,8 +740,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (folderContentsVis)
                        SettingsTile(
                          icon: Broken.folder_open,
@@ -4835,7 +4960,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -771,8 +771,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -771,8 +755,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (folderSizesVis)
                        SettingsTile(
                          icon: Broken.document_text_1,
@@ -4846,7 +4971,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -786,8 +786,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -786,8 +770,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (use24HourVis)
                        SettingsTile(
                          icon: Icons.access_time_rounded,
@@ -4857,7 +4982,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -801,8 +801,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -801,8 +785,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (hideTimeDateVis)
                        SettingsTile(
                          icon: Icons.visibility_off_rounded,
@@ -4868,7 +4993,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -816,8 +816,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -816,8 +800,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (adaptiveNamesVis)
                        SettingsTile(
                          icon: Broken.text,
@@ -4879,7 +5004,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -831,8 +831,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -831,8 +815,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (hideActionButtonsVis)
                        SettingsTile(
                          icon: Icons.more_vert_rounded,
@@ -4890,7 +5015,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -846,19 +846,19 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -846,19 +830,19 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (trailingInfoVis)
                        SettingsTile(
                          icon: Icons.info_outline_rounded,
@@ -4914,7 +5039,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -883,8 +883,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -883,8 +867,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (mediaPreviewsVis)
                        SettingsTile(
                          icon: Broken.image,
@@ -4925,7 +5050,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -898,8 +898,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -898,8 +882,8 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (skipDialogVis)
                        SettingsTile(
                          icon: Broken.setting_3,
@@ -4936,7 +5061,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -913,14 +913,14 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -913,14 +897,14 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (resetViewersVis)
                        SettingsTile(
                          icon: Broken.refresh_2,
@@ -4954,7 +5079,7 @@ index bd359fd..b8720c0 100644
                                  behavior: SnackBarBehavior.floating,
                                ),
                              );
-@@ -930,12 +930,12 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -930,12 +914,12 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                    ],
                    if (_shouldShowHeader(recycleBinList)) ...[
                      const SizedBox(height: 24),
@@ -4970,7 +5095,7 @@ index bd359fd..b8720c0 100644
                          trailing: Transform.scale(
                            scale: 0.85,
                            child: Switch(
-@@ -958,7 +958,7 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -958,7 +942,7 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                      if (autoDeleteDurationVis)
                        SettingsTile(
                          icon: Icons.access_time_rounded,
@@ -4979,7 +5104,7 @@ index bd359fd..b8720c0 100644
                          subtitle: _getAutoDeleteDaysLabel(RecycleBinService.getAutoDeleteDays()),
                          onTap: () => _showAutoDeleteDaysPickerDialog(context, theme, () {
                            setState(() {});
-@@ -967,19 +967,19 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -967,19 +951,19 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                    ],
                    if (_shouldShowHeader([backupSettingsVis, restoreSettingsVis])) ...[
                      const SizedBox(height: 24),
@@ -5004,7 +5129,7 @@ index bd359fd..b8720c0 100644
                          onTap: () async {
                            final pickedPaths = await InternalFilePickerScreen.show(
                              context,
-@@ -997,7 +997,7 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
+@@ -997,7 +981,7 @@ class _MoreSettingsScreenState extends State<MoreSettingsScreen> {
                                if (context.mounted) {
                                  ScaffoldMessenger.of(context).showSnackBar(
                                    SnackBar(
@@ -5013,7 +5138,7 @@ index bd359fd..b8720c0 100644
                                      behavior: SnackBarBehavior.floating,
                                      backgroundColor: theme.colorScheme.error,
                                    ),
-@@ -1097,7 +1097,7 @@ class GeneralSettingsScreen extends StatelessWidget {
+@@ -1097,7 +1081,7 @@ class GeneralSettingsScreen extends StatelessWidget {
  
      return Scaffold(
        appBar: AppBar(
@@ -5022,7 +5147,7 @@ index bd359fd..b8720c0 100644
          leading: IconButton(
            icon: const NfileIcon(Broken.arrow_left),
            onPressed: () => Navigator.pop(context),
-@@ -1110,8 +1110,8 @@ class GeneralSettingsScreen extends StatelessWidget {
+@@ -1110,8 +1094,8 @@ class GeneralSettingsScreen extends StatelessWidget {
            children: [
              SettingsTile(
                icon: Broken.folder_favorite,
@@ -5033,7 +5158,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1124,8 +1124,8 @@ class GeneralSettingsScreen extends StatelessWidget {
+@@ -1124,8 +1108,8 @@ class GeneralSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Broken.folder_open,
@@ -5044,7 +5169,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1138,8 +1138,8 @@ class GeneralSettingsScreen extends StatelessWidget {
+@@ -1138,8 +1122,8 @@ class GeneralSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Broken.menu,
@@ -5055,7 +5180,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1152,8 +1152,8 @@ class GeneralSettingsScreen extends StatelessWidget {
+@@ -1152,8 +1136,8 @@ class GeneralSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Broken.menu_1,
@@ -5066,7 +5191,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1166,8 +1166,8 @@ class GeneralSettingsScreen extends StatelessWidget {
+@@ -1166,8 +1150,8 @@ class GeneralSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Icons.android,
@@ -5077,7 +5202,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1180,8 +1180,8 @@ class GeneralSettingsScreen extends StatelessWidget {
+@@ -1180,8 +1164,8 @@ class GeneralSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Broken.menu,
@@ -5088,7 +5213,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1194,8 +1194,8 @@ class GeneralSettingsScreen extends StatelessWidget {
+@@ -1194,8 +1178,8 @@ class GeneralSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Icons.label_off_rounded,
@@ -5099,7 +5224,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1208,14 +1208,14 @@ class GeneralSettingsScreen extends StatelessWidget {
+@@ -1208,14 +1192,14 @@ class GeneralSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Broken.setting_2,
@@ -5118,7 +5243,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1228,8 +1228,8 @@ class GeneralSettingsScreen extends StatelessWidget {
+@@ -1228,8 +1212,8 @@ class GeneralSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Icons.gesture,
@@ -5129,7 +5254,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1242,10 +1242,10 @@ class GeneralSettingsScreen extends StatelessWidget {
+@@ -1242,10 +1226,10 @@ class GeneralSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Icons.logout_rounded,
@@ -5143,7 +5268,7 @@ index bd359fd..b8720c0 100644
                onTap: () => _showExitOptionPickerDialog(context, fileManager, theme),
              ),
            ],
-@@ -1265,7 +1265,7 @@ class AppearanceSettingsScreen extends StatelessWidget {
+@@ -1265,7 +1249,7 @@ class AppearanceSettingsScreen extends StatelessWidget {
  
      return Scaffold(
        appBar: AppBar(
@@ -5152,7 +5277,7 @@ index bd359fd..b8720c0 100644
          leading: IconButton(
            icon: const NfileIcon(Broken.arrow_left),
            onPressed: () => Navigator.pop(context),
-@@ -1278,26 +1278,26 @@ class AppearanceSettingsScreen extends StatelessWidget {
+@@ -1278,26 +1262,26 @@ class AppearanceSettingsScreen extends StatelessWidget {
            children: [
              SettingsTile(
                icon: Broken.colorfilter,
@@ -5184,7 +5309,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1310,20 +1310,20 @@ class AppearanceSettingsScreen extends StatelessWidget {
+@@ -1310,20 +1294,20 @@ class AppearanceSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Broken.category,
@@ -5209,7 +5334,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1351,7 +1351,7 @@ class ExplorerSettingsScreen extends StatelessWidget {
+@@ -1351,7 +1335,7 @@ class ExplorerSettingsScreen extends StatelessWidget {
  
      return Scaffold(
        appBar: AppBar(
@@ -5218,7 +5343,7 @@ index bd359fd..b8720c0 100644
          leading: IconButton(
            icon: const NfileIcon(Broken.arrow_left),
            onPressed: () => Navigator.pop(context),
-@@ -1364,8 +1364,8 @@ class ExplorerSettingsScreen extends StatelessWidget {
+@@ -1364,8 +1348,8 @@ class ExplorerSettingsScreen extends StatelessWidget {
            children: [
              SettingsTile(
                icon: Broken.edit,
@@ -5229,7 +5354,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1378,8 +1378,8 @@ class ExplorerSettingsScreen extends StatelessWidget {
+@@ -1378,8 +1362,8 @@ class ExplorerSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Broken.add_square,
@@ -5240,7 +5365,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1392,8 +1392,8 @@ class ExplorerSettingsScreen extends StatelessWidget {
+@@ -1392,8 +1376,8 @@ class ExplorerSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Broken.folder_open,
@@ -5251,7 +5376,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1406,8 +1406,8 @@ class ExplorerSettingsScreen extends StatelessWidget {
+@@ -1406,8 +1390,8 @@ class ExplorerSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Broken.colorfilter,
@@ -5262,7 +5387,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1420,8 +1420,8 @@ class ExplorerSettingsScreen extends StatelessWidget {
+@@ -1420,8 +1404,8 @@ class ExplorerSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Broken.category,
@@ -5273,19 +5398,24 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1434,8 +1434,8 @@ class ExplorerSettingsScreen extends StatelessWidget {
+@@ -1432,24 +1416,10 @@ class ExplorerSettingsScreen extends StatelessWidget {
+               ),
+               onTap: () => fileManager.toggleMultipleTabs(),
              ),
-             SettingsTile(
-               icon: Icons.splitscreen,
+-            SettingsTile(
+-              icon: Icons.splitscreen,
 -              title: 'Enable Split Screen',
 -              subtitle: 'Browse two directories side by side and transfer files easily',
-+              title: '启用分屏',
-+              subtitle: '并排浏览两个目录，轻松互传文件',
-               trailing: Transform.scale(
-                 scale: 0.85,
-                 child: Switch(
-@@ -1448,8 +1448,8 @@ class ExplorerSettingsScreen extends StatelessWidget {
-             ),
+-              trailing: Transform.scale(
+-                scale: 0.85,
+-                child: Switch(
+-                  value: fileManager.enableSplitScreen,
+-                  activeColor: theme.colorScheme.primary,
+-                  onChanged: (_) => fileManager.toggleSplitScreen(),
+-                ),
+-              ),
+-              onTap: () => fileManager.toggleSplitScreen(),
+-            ),
              SettingsTile(
                icon: Broken.folder_connection,
 -              title: 'Enable Drag & Drop',
@@ -5295,7 +5425,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1465,8 +1465,8 @@ class ExplorerSettingsScreen extends StatelessWidget {
+@@ -1465,8 +1435,8 @@ class ExplorerSettingsScreen extends StatelessWidget {
                  padding: const EdgeInsets.only(left: 16.0),
                  child: SettingsTile(
                    icon: Broken.task_square,
@@ -5306,7 +5436,7 @@ index bd359fd..b8720c0 100644
                    trailing: Transform.scale(
                      scale: 0.85,
                      child: Switch(
-@@ -1495,7 +1495,7 @@ class LayoutSettingsScreen extends StatelessWidget {
+@@ -1495,7 +1465,7 @@ class LayoutSettingsScreen extends StatelessWidget {
  
      return Scaffold(
        appBar: AppBar(
@@ -5315,7 +5445,7 @@ index bd359fd..b8720c0 100644
          leading: IconButton(
            icon: const NfileIcon(Broken.arrow_left),
            onPressed: () => Navigator.pop(context),
-@@ -1508,8 +1508,8 @@ class LayoutSettingsScreen extends StatelessWidget {
+@@ -1508,8 +1478,8 @@ class LayoutSettingsScreen extends StatelessWidget {
            children: [
              SettingsTile(
                icon: Broken.document_text_1,
@@ -5326,7 +5456,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1522,8 +1522,8 @@ class LayoutSettingsScreen extends StatelessWidget {
+@@ -1522,8 +1492,8 @@ class LayoutSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Broken.folder_open,
@@ -5337,7 +5467,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1536,8 +1536,8 @@ class LayoutSettingsScreen extends StatelessWidget {
+@@ -1536,8 +1506,8 @@ class LayoutSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Broken.document_text_1,
@@ -5348,7 +5478,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1550,8 +1550,8 @@ class LayoutSettingsScreen extends StatelessWidget {
+@@ -1550,8 +1520,8 @@ class LayoutSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Icons.access_time_rounded,
@@ -5359,7 +5489,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1564,8 +1564,8 @@ class LayoutSettingsScreen extends StatelessWidget {
+@@ -1564,8 +1534,8 @@ class LayoutSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Icons.visibility_off_rounded,
@@ -5370,7 +5500,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1578,8 +1578,8 @@ class LayoutSettingsScreen extends StatelessWidget {
+@@ -1578,8 +1548,8 @@ class LayoutSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Broken.text,
@@ -5381,7 +5511,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1592,8 +1592,8 @@ class LayoutSettingsScreen extends StatelessWidget {
+@@ -1592,8 +1562,8 @@ class LayoutSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Icons.more_vert_rounded,
@@ -5392,7 +5522,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1607,7 +1607,7 @@ class LayoutSettingsScreen extends StatelessWidget {
+@@ -1607,7 +1577,7 @@ class LayoutSettingsScreen extends StatelessWidget {
              if (fileManager.hideActionMenuButtons)
                SettingsTile(
                  icon: Icons.info_outline_rounded,
@@ -5401,7 +5531,7 @@ index bd359fd..b8720c0 100644
                  subtitle: _getTrailingInfoTypeLabel(fileManager.trailingInfoType),
                  onTap: () => _showTrailingInfoTypePickerDialog(context, fileManager, theme),
                ),
-@@ -1641,7 +1641,7 @@ class _MediaSettingsScreenState extends State<MediaSettingsScreen> {
+@@ -1641,7 +1611,7 @@ class _MediaSettingsScreenState extends State<MediaSettingsScreen> {
  
      return Scaffold(
        appBar: AppBar(
@@ -5410,7 +5540,7 @@ index bd359fd..b8720c0 100644
          leading: IconButton(
            icon: const NfileIcon(Broken.arrow_left),
            onPressed: () => Navigator.pop(context),
-@@ -1654,8 +1654,8 @@ class _MediaSettingsScreenState extends State<MediaSettingsScreen> {
+@@ -1654,8 +1624,8 @@ class _MediaSettingsScreenState extends State<MediaSettingsScreen> {
            children: [
              SettingsTile(
                icon: Broken.folder_2,
@@ -5421,7 +5551,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1679,8 +1679,8 @@ class _MediaSettingsScreenState extends State<MediaSettingsScreen> {
+@@ -1679,8 +1649,8 @@ class _MediaSettingsScreenState extends State<MediaSettingsScreen> {
              ),
              SettingsTile(
                icon: Broken.image,
@@ -5432,7 +5562,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1708,7 +1708,7 @@ class ActionsSettingsScreen extends StatelessWidget {
+@@ -1708,7 +1678,7 @@ class ActionsSettingsScreen extends StatelessWidget {
  
      return Scaffold(
        appBar: AppBar(
@@ -5441,7 +5571,7 @@ index bd359fd..b8720c0 100644
          leading: IconButton(
            icon: const NfileIcon(Broken.arrow_left),
            onPressed: () => Navigator.pop(context),
-@@ -1721,8 +1721,8 @@ class ActionsSettingsScreen extends StatelessWidget {
+@@ -1721,8 +1691,8 @@ class ActionsSettingsScreen extends StatelessWidget {
            children: [
              SettingsTile(
                icon: Broken.setting_3,
@@ -5452,7 +5582,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1735,14 +1735,14 @@ class ActionsSettingsScreen extends StatelessWidget {
+@@ -1735,14 +1705,14 @@ class ActionsSettingsScreen extends StatelessWidget {
              ),
              SettingsTile(
                icon: Broken.refresh_2,
@@ -5470,7 +5600,7 @@ index bd359fd..b8720c0 100644
                        behavior: SnackBarBehavior.floating,
                      ),
                    );
-@@ -1770,7 +1770,7 @@ class _TrashSettingsScreenState extends State<TrashSettingsScreen> {
+@@ -1770,7 +1740,7 @@ class _TrashSettingsScreenState extends State<TrashSettingsScreen> {
  
      return Scaffold(
        appBar: AppBar(
@@ -5479,7 +5609,7 @@ index bd359fd..b8720c0 100644
          leading: IconButton(
            icon: const NfileIcon(Broken.arrow_left),
            onPressed: () => Navigator.pop(context),
-@@ -1783,8 +1783,8 @@ class _TrashSettingsScreenState extends State<TrashSettingsScreen> {
+@@ -1783,8 +1753,8 @@ class _TrashSettingsScreenState extends State<TrashSettingsScreen> {
            children: [
              SettingsTile(
                icon: Broken.trash,
@@ -5490,7 +5620,7 @@ index bd359fd..b8720c0 100644
                trailing: Transform.scale(
                  scale: 0.85,
                  child: Switch(
-@@ -1807,7 +1807,7 @@ class _TrashSettingsScreenState extends State<TrashSettingsScreen> {
+@@ -1807,7 +1777,7 @@ class _TrashSettingsScreenState extends State<TrashSettingsScreen> {
              if (RecycleBinService.isEnabled())
                SettingsTile(
                  icon: Icons.access_time_rounded,
@@ -5499,7 +5629,7 @@ index bd359fd..b8720c0 100644
                  subtitle: _getAutoDeleteDaysLabel(RecycleBinService.getAutoDeleteDays()),
                  onTap: () => _showAutoDeleteDaysPickerDialog(context, theme, () {
                    setState(() {});
-@@ -1826,82 +1826,82 @@ class _TrashSettingsScreenState extends State<TrashSettingsScreen> {
+@@ -1826,82 +1796,82 @@ class _TrashSettingsScreenState extends State<TrashSettingsScreen> {
  
  String _getAccentColorLabel(String option) {
    switch (option) {
@@ -5618,7 +5748,7 @@ index bd359fd..b8720c0 100644
    }
  }
  
-@@ -1914,9 +1914,9 @@ void _showTrailingInfoTypePickerDialog(BuildContext context, FileManagerProvider
+@@ -1914,9 +1884,9 @@ void _showTrailingInfoTypePickerDialog(BuildContext context, FileManagerProvider
      builder: (ctx) {
        final current = fileManager.trailingInfoType;
        final options = [
@@ -5631,7 +5761,7 @@ index bd359fd..b8720c0 100644
        ];
  
        return SafeArea(
-@@ -1938,13 +1938,13 @@ void _showTrailingInfoTypePickerDialog(BuildContext context, FileManagerProvider
+@@ -1938,13 +1908,13 @@ void _showTrailingInfoTypePickerDialog(BuildContext context, FileManagerProvider
                    const SizedBox(height: 16),
                    Padding(
                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -5647,7 +5777,7 @@ index bd359fd..b8720c0 100644
                        style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6), fontSize: 13),
                      ),
                    ),
-@@ -2011,8 +2011,8 @@ void _showExitOptionPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2011,8 +1981,8 @@ void _showExitOptionPickerDialog(BuildContext context, FileManagerProvider fileM
      builder: (ctx) {
        final current = fileManager.exitOption;
        final options = [
@@ -5658,7 +5788,7 @@ index bd359fd..b8720c0 100644
        ];
  
        return SafeArea(
-@@ -2034,7 +2034,7 @@ void _showExitOptionPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2034,7 +2004,7 @@ void _showExitOptionPickerDialog(BuildContext context, FileManagerProvider fileM
                    const SizedBox(height: 16),
                    Padding(
                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -5667,7 +5797,7 @@ index bd359fd..b8720c0 100644
                    ),
                    const SizedBox(height: 16),
                    ListView.builder(
-@@ -2080,17 +2080,17 @@ void _showThemePickerDialog(BuildContext context, FileManagerProvider fileManage
+@@ -2080,17 +2050,17 @@ void _showThemePickerDialog(BuildContext context, FileManagerProvider fileManage
      builder: (ctx) {
        final current = fileManager.accentColorOption;
        final options = [
@@ -5696,7 +5826,7 @@ index bd359fd..b8720c0 100644
        ];
  
        return SafeArea(
-@@ -2112,7 +2112,7 @@ void _showThemePickerDialog(BuildContext context, FileManagerProvider fileManage
+@@ -2112,7 +2082,7 @@ void _showThemePickerDialog(BuildContext context, FileManagerProvider fileManage
                    const SizedBox(height: 16),
                    Padding(
                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -5705,7 +5835,7 @@ index bd359fd..b8720c0 100644
                    ),
                    const SizedBox(height: 16),
                    ListView.builder(
-@@ -2166,12 +2166,12 @@ void _showFolderIconPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2166,12 +2136,12 @@ void _showFolderIconPickerDialog(BuildContext context, FileManagerProvider fileM
      builder: (ctx) {
        final current = fileManager.folderIconOption;
        final options = [
@@ -5724,7 +5854,7 @@ index bd359fd..b8720c0 100644
        ];
  
        return SafeArea(
-@@ -2193,7 +2193,7 @@ void _showFolderIconPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2193,7 +2163,7 @@ void _showFolderIconPickerDialog(BuildContext context, FileManagerProvider fileM
                    const SizedBox(height: 16),
                    Padding(
                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -5733,7 +5863,7 @@ index bd359fd..b8720c0 100644
                    ),
                    const SizedBox(height: 16),
                    ListView.builder(
-@@ -2245,8 +2245,8 @@ void _showMenuIconStylePickerDialog(BuildContext context, FileManagerProvider fi
+@@ -2245,8 +2215,8 @@ void _showMenuIconStylePickerDialog(BuildContext context, FileManagerProvider fi
      builder: (ctx) {
        final current = fileManager.menuIconStyle;
        final options = [
@@ -5744,7 +5874,7 @@ index bd359fd..b8720c0 100644
        ];
  
        return SafeArea(
-@@ -2268,7 +2268,7 @@ void _showMenuIconStylePickerDialog(BuildContext context, FileManagerProvider fi
+@@ -2268,7 +2238,7 @@ void _showMenuIconStylePickerDialog(BuildContext context, FileManagerProvider fi
                    const SizedBox(height: 16),
                    Padding(
                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -5753,7 +5883,7 @@ index bd359fd..b8720c0 100644
                    ),
                    const SizedBox(height: 16),
                    ListView.builder(
-@@ -2315,7 +2315,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2315,7 +2285,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
    showGeneralDialog(
      context: context,
      barrierDismissible: true,
@@ -5762,7 +5892,7 @@ index bd359fd..b8720c0 100644
      barrierColor: Colors.black.withOpacity(0.55),
      transitionDuration: const Duration(milliseconds: 250),
      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
-@@ -2331,7 +2331,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2331,7 +2301,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                children: [
                  Icon(Broken.category, color: theme.colorScheme.primary, size: 26),
                  const SizedBox(width: 12),
@@ -5771,7 +5901,7 @@ index bd359fd..b8720c0 100644
                ],
              ),
              content: SizedBox(
-@@ -2340,7 +2340,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2340,7 +2310,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                  mainAxisSize: MainAxisSize.min,
                  children: [
                    const Text(
@@ -5780,7 +5910,7 @@ index bd359fd..b8720c0 100644
                      style: TextStyle(fontSize: 13, height: 1.3, color: Colors.grey),
                    ),
                    const SizedBox(height: 20),
-@@ -2359,7 +2359,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2359,7 +2329,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
                              id: 'default',
@@ -5789,7 +5919,7 @@ index bd359fd..b8720c0 100644
                              imagePath: 'assets/ic_launcher.webp',
                            ),
                            _buildIconOptionCard(
-@@ -2367,7 +2367,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2367,7 +2337,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
                              id: 'logo1',
@@ -5798,7 +5928,7 @@ index bd359fd..b8720c0 100644
                              imagePath: 'assets/logo/n1.png',
                            ),
                            _buildIconOptionCard(
-@@ -2375,7 +2375,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2375,7 +2345,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
                              id: 'logo2',
@@ -5807,7 +5937,7 @@ index bd359fd..b8720c0 100644
                              imagePath: 'assets/logo/n2.png',
                            ),
                            _buildIconOptionCard(
-@@ -2383,7 +2383,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2383,7 +2353,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
                              id: 'logo3',
@@ -5816,7 +5946,7 @@ index bd359fd..b8720c0 100644
                              imagePath: 'assets/logo/n3.png',
                            ),
                            _buildIconOptionCard(
-@@ -2391,7 +2391,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2391,7 +2361,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
                              id: 'logo4',
@@ -5825,7 +5955,7 @@ index bd359fd..b8720c0 100644
                              imagePath: 'assets/logo/n4.png',
                            ),
                          ],
-@@ -2439,7 +2439,7 @@ Widget _buildIconOptionCard(
+@@ -2439,7 +2409,7 @@ Widget _buildIconOptionCard(
          fileManager.setActiveAppIcon(id);
          ScaffoldMessenger.of(context).showSnackBar(
            SnackBar(
@@ -5834,7 +5964,7 @@ index bd359fd..b8720c0 100644
              behavior: SnackBarBehavior.floating,
              duration: const Duration(seconds: 2),
            ),
-@@ -2493,13 +2493,13 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2493,13 +2463,13 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
        final current = fileManager.fontFamilyOption;
        final hasCustomFont = fileManager.customFontPath != null;
        final options = [
@@ -5854,7 +5984,7 @@ index bd359fd..b8720c0 100644
        ];
  
        return SafeArea(
-@@ -2520,12 +2520,12 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2520,12 +2490,12 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                    ),
                    const SizedBox(height: 16),
                    Text(
@@ -5869,7 +5999,7 @@ index bd359fd..b8720c0 100644
                      style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6), fontSize: 13, fontFamily: 'LexendDeca'),
                    ),
                    const SizedBox(height: 16),
-@@ -2565,7 +2565,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2565,7 +2535,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                    OutlinedButton.icon(
                      icon: const Icon(Broken.document_upload, size: 20),
                      label: Text(
@@ -5878,7 +6008,7 @@ index bd359fd..b8720c0 100644
                        style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'LexendDeca'),
                      ),
                      style: OutlinedButton.styleFrom(
-@@ -2589,13 +2589,13 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2589,13 +2559,13 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                              fileManager.setFontFamilyOption('custom');
                              if (context.mounted) {
                                ScaffoldMessenger.of(context).showSnackBar(
@@ -5894,7 +6024,7 @@ index bd359fd..b8720c0 100644
                                );
                              }
                            }
-@@ -2604,8 +2604,8 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2604,8 +2574,8 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                              showDialog(
                                context: context,
                                builder: (context) => AlertDialog(
@@ -5905,7 +6035,7 @@ index bd359fd..b8720c0 100644
                                  actions: [
                                    TextButton(
                                      onPressed: () => Navigator.pop(context),
-@@ -2623,7 +2623,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2623,7 +2593,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                      const SizedBox(height: 8),
                      TextButton.icon(
                        icon: const Icon(Broken.trash, size: 18, color: Colors.redAccent),
@@ -5914,7 +6044,7 @@ index bd359fd..b8720c0 100644
                        onPressed: () async {
                          Navigator.pop(ctx);
                          await fileManager.setCustomFontPath(null);
-@@ -2632,7 +2632,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2632,7 +2602,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                          }
                          if (context.mounted) {
                            ScaffoldMessenger.of(context).showSnackBar(
@@ -5923,7 +6053,7 @@ index bd359fd..b8720c0 100644
                            );
                          }
                        },
-@@ -2656,10 +2656,10 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
+@@ -2656,10 +2626,10 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
      builder: (ctx) {
        final current = RecycleBinService.getAutoDeleteDays();
        final options = [
@@ -5938,7 +6068,7 @@ index bd359fd..b8720c0 100644
        ];
  
        return SafeArea(
-@@ -2683,7 +2683,7 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
+@@ -2683,7 +2653,7 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
                Padding(
                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
                  child: Text(
@@ -5947,7 +6077,7 @@ index bd359fd..b8720c0 100644
                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, fontSize: 18),
                  ),
                ),
-@@ -2691,7 +2691,7 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
+@@ -2691,7 +2661,7 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
                Padding(
                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
                  child: Text(
@@ -9094,31 +9224,57 @@ index 6bcf66b..75544a1 100644
                      ];
                    },
 diff --git a/lib/ui/widgets/file_item.dart b/lib/ui/widgets/file_item.dart
-index db4f036..4cc050d 100644
+index db4f036..8e4138f 100644
 --- a/lib/ui/widgets/file_item.dart
 +++ b/lib/ui/widgets/file_item.dart
-@@ -157,22 +157,22 @@ class FileItem extends StatelessWidget {
+@@ -123,15 +123,13 @@ class FileItem extends StatelessWidget {
+                       builder: (context, provider, _) {
+                         return Row(
+                           children: [
+-                            if (!provider.hideTimeAndDate) ...[
+-                              Text(
+-                                FileUtils.formatDate(file.modified, use24Hour: provider.use24HourFormat),
+-                                style: theme.textTheme.bodySmall?.copyWith(
+-                                  color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
+-                                ),
++                            Text(
++                              FileUtils.formatDate(file.modified, use24Hour: provider.use24HourFormat),
++                              style: theme.textTheme.bodySmall?.copyWith(
++                                color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
+                               ),
+-                              const SizedBox(width: 12),
+-                            ],
++                            ),
++                            const SizedBox(width: 12),
+                             Text(
+                               FileUtils.formatBytes(file.size, 2),
+                               style: theme.textTheme.bodySmall?.copyWith(
+@@ -157,22 +155,21 @@ class FileItem extends StatelessWidget {
                        if (showShowInLocationOption)
                          const PopupMenuItem(
                            value: 'show_in_location',
 -                          child: Row(children: [NfileIcon(Broken.folder_open, size: 20), SizedBox(width: 12), Text('Show in location', style: TextStyle(fontWeight: FontWeight.w500))]),
+-                        ),
+-                      if (showShowInLocationOption)
+-                        const PopupMenuItem(
+-                          value: 'share',
+-                          child: Row(children: [Icon(Icons.share_outlined, size: 20), SizedBox(width: 12), Text('Share', style: TextStyle(fontWeight: FontWeight.w500))]),
 +                          child: Row(children: [NfileIcon(Broken.folder_open, size: 20), SizedBox(width: 12), Text('在所在位置显示', style: TextStyle(fontWeight: FontWeight.w500))]),
                          ),
-                       if (showShowInLocationOption)
-                         const PopupMenuItem(
-                           value: 'share',
--                          child: Row(children: [Icon(Icons.share_outlined, size: 20), SizedBox(width: 12), Text('Share', style: TextStyle(fontWeight: FontWeight.w500))]),
-+                          child: Row(children: [Icon(Icons.share_outlined, size: 20), SizedBox(width: 12), Text('分享', style: TextStyle(fontWeight: FontWeight.w500))]),
-                         ),
++                      const PopupMenuItem(
++                        value: 'share',
++                        child: Row(children: [Icon(Icons.share_outlined, size: 20), SizedBox(width: 12), Text('分享', style: TextStyle(fontWeight: FontWeight.w500))]),
++                      ),
                        if (isArchive)
 -                        const PopupMenuItem(value: 'extract', child: Row(children: [NfileIcon(Broken.archive, size: 20), SizedBox(width: 12), Text('Extract', style: TextStyle(fontWeight: FontWeight.w500))])),
 -                      const PopupMenuItem(value: 'archive', child: Row(children: [NfileIcon(Broken.box_add, size: 20), SizedBox(width: 12), Text('Archive', style: TextStyle(fontWeight: FontWeight.w500))])),
 -                      const PopupMenuItem(value: 'copy', child: Row(children: [NfileIcon(Broken.document_copy, size: 20), SizedBox(width: 12), Text('Copy', style: TextStyle(fontWeight: FontWeight.w500))])),
+-                      const PopupMenuItem(value: 'cut', child: Row(children: [NfileIcon(Broken.scissor, size: 20), SizedBox(width: 12), Text('Cut', style: TextStyle(fontWeight: FontWeight.w500))])),
+-                      const PopupMenuItem(value: 'rename', child: Row(children: [NfileIcon(Broken.edit, size: 20), SizedBox(width: 12), Text('Rename', style: TextStyle(fontWeight: FontWeight.w500))])),
 +                        const PopupMenuItem(value: 'extract', child: Row(children: [NfileIcon(Broken.archive, size: 20), SizedBox(width: 12), Text('解压', style: TextStyle(fontWeight: FontWeight.w500))])),
 +                      const PopupMenuItem(value: 'archive', child: Row(children: [NfileIcon(Broken.box_add, size: 20), SizedBox(width: 12), Text('压缩包', style: TextStyle(fontWeight: FontWeight.w500))])),
 +                      const PopupMenuItem(value: 'copy', child: Row(children: [NfileIcon(Broken.document_copy, size: 20), SizedBox(width: 12), Text('复制', style: TextStyle(fontWeight: FontWeight.w500))])),
-                       const PopupMenuItem(value: 'cut', child: Row(children: [NfileIcon(Broken.scissor, size: 20), SizedBox(width: 12), Text('Cut', style: TextStyle(fontWeight: FontWeight.w500))])),
--                      const PopupMenuItem(value: 'rename', child: Row(children: [NfileIcon(Broken.edit, size: 20), SizedBox(width: 12), Text('Rename', style: TextStyle(fontWeight: FontWeight.w500))])),
++                      const PopupMenuItem(value: 'cut', child: Row(children: [NfileIcon(Broken.scissor, size: 20), SizedBox(width: 12), Text('剪切', style: TextStyle(fontWeight: FontWeight.w500))])),
 +                      const PopupMenuItem(value: 'rename', child: Row(children: [NfileIcon(Broken.edit, size: 20), SizedBox(width: 12), Text('重命名', style: TextStyle(fontWeight: FontWeight.w500))])),
                        const PopupMenuItem(
                          value: 'delete',
@@ -9127,7 +9283,7 @@ index db4f036..4cc050d 100644
                        ),
                      ];
                    },
-@@ -497,7 +497,7 @@ class _TrailingInfoWidget extends StatelessWidget {
+@@ -497,7 +494,7 @@ class _TrailingInfoWidget extends StatelessWidget {
              final count = snapshot.data;
              String label = '...';
              if (count != null && count >= 0) {
@@ -9493,7 +9649,7 @@ index c1af055..44a2cf5 100644
                    ),
                  ],
 diff --git a/lib/ui/widgets/pane_browser.dart b/lib/ui/widgets/pane_browser.dart
-index ccddab6..c87f07f 100644
+index ccddab6..041fee8 100644
 --- a/lib/ui/widgets/pane_browser.dart
 +++ b/lib/ui/widgets/pane_browser.dart
 @@ -43,11 +43,11 @@ class _PaneBrowserState extends State<PaneBrowser> {
@@ -9604,7 +9760,18 @@ index ccddab6..c87f07f 100644
                                  if (provider.hideTimeAndDate) {
                                    return Text(
                                      countStr,
-@@ -963,27 +963,27 @@ class _PaneBrowserState extends State<PaneBrowser> {
+@@ -932,9 +932,7 @@ class _PaneBrowserState extends State<PaneBrowser> {
+                     ),
+                     const SizedBox(height: 1),
+                     Text(
+-                      provider.hideTimeAndDate
+-                          ? FileUtils.formatBytes(file.size, 1)
+-                          : "${FileUtils.formatDate(file.modified, use24Hour: provider.use24HourFormat)}   ${FileUtils.formatBytes(file.size, 1)}",
++                      "${FileUtils.formatDate(file.modified, use24Hour: provider.use24HourFormat)}   ${FileUtils.formatBytes(file.size, 1)}",
+                       style: theme.textTheme.bodySmall?.copyWith(
+                         color: theme.textTheme.bodySmall?.color?.withOpacity(0.55),
+                         fontSize: 10.5,
+@@ -963,27 +961,27 @@ class _PaneBrowserState extends State<PaneBrowser> {
        case FileFilterType.all:
          break;
        case FileFilterType.documents:
@@ -9637,7 +9804,7 @@ index ccddab6..c87f07f 100644
          icon = Broken.archive;
          color = Colors.brown;
          break;
-@@ -1004,7 +1004,7 @@ class _PaneBrowserState extends State<PaneBrowser> {
+@@ -1004,7 +1002,7 @@ class _PaneBrowserState extends State<PaneBrowser> {
              const SizedBox(width: 8),
              Expanded(
                child: Text(
