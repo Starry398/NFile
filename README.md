@@ -1,50 +1,133 @@
-# NFile
+# NFile 汉化版（Starry398 fork）
 
-A beautiful File Manager application built with Flutter.
+基于 [Senzme/NFile](https://github.com/Senzme/NFile) 的简体中文增强分支。
 
-## Overview
-NFile is designed to provide a highly aesthetic file management experience on Android. It features a stunning interface with an exclusive "Broken" icon pack, dynamic AMOLED-friendly dark mode, and a fluid user experience. 
+- **包名**：`com.rubex.nfile.starry`（与上游版本可共存，互不影响）
+- **架构**：仅 arm64-v8a
+- **下载**：在 [Releases](https://github.com/Starry398/NFile/releases) 获取
 
-With the latest update, NFile transitions from a simple file explorer to a comprehensive media hub with built-in high-performance players and viewers.
+---
 
-## Features
-- **Premium UI/UX:** A textured and alpha-blended aesthetic that gives a modern, glassmorphic feel to your file browsing.
-- **Native Media Indexing:** Lightning-fast gallery views for Images, Videos, and Audio using native device indexing. No more slow recursive scans.
-- **Built-in Media Players:**
-    - **High-Performance Video Player:** Powered by `media_kit` for smooth playback of high-resolution videos.
-    - **Elegant Audio Player:** Clean playback interface with album art support and precise seeking.
-    - **Pinch-to-Zoom Image Viewer:** View your memories in full detail with smooth gestures.
-- **Built-in Text Editor:** View and edit `.txt`, `.md`, `.json`, and other code files directly within the app.
-- **Advanced Sorting:** Filter your media by Newest, Oldest, or Date-wise to find what you need instantly.
-- **Complete File Operations:** Easily copy, cut, paste, rename, and delete files or folders.
-- **Quick Categories:** One-tap access to your indexed media libraries.
-- **Storage Overview:** Visual representation of your device's internal storage usage.
-- **Fluid UI:** iOS-style bouncy physics and smooth transitions throughout the app.
+## 和上游版本相比改了什么
 
-## Screenshots
+### 一、完整简体中文化
 
-| | | | |
-|:---:|:---:|:---:|:---:|
-| <img src="https://github.com/user-attachments/assets/2d36cbea-e994-4302-b3a3-4b4364e96a41" width="200"> | <img src="https://github.com/user-attachments/assets/66b864ed-2598-477c-bdb4-d045a71e93b9" width="200"> | <img src="https://github.com/user-attachments/assets/874a9d0f-1796-4e4d-9f92-2c8915626376" width="200"> | <img src="https://github.com/user-attachments/assets/ca1e78e0-8e68-4985-bc9c-39e763b8ed74" width="200"> |
+上游界面基本是英文，本分支做了全量汉化：
 
+| 项 | 数量 |
+|---|---|
+| 词条 | 962 条 |
+| 替换位置 | 1621 处 |
+| 涉及文件 | 58 个 |
 
-## Permissions
-The application requires the following permissions for full functionality:
-- `MANAGE_EXTERNAL_STORAGE`: For seamless file operations across the entire device.
-- `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO`, `READ_MEDIA_AUDIO`: For high-speed native media indexing.
+专有名词保留英文：FTP / SFTP / SMB / WebDAV / SAF / ZIP / APK / PDF。
 
-## Building and Running
-1. Clone this repository.
-2. Run `flutter pub get` to install dependencies.
-3. Run `flutter run` on an Android device (API 21+ required).
+汉化通过词库 + 注入脚本完成，上游升级后只需更新词库即可复用。
 
-## Technologies Used
-- **Flutter & Dart**
-- **State Management:** `provider`
-- **Media Engine:** `media_kit` (Video & Audio playback)
-- **Indexing:** `photo_manager` & `on_audio_query`
-- **Permissions:** `permission_handler`
-- **Viewers:** `photo_view` & `open_filex`
+### 二、启动体验
 
-## License
-GNU GPL v3 License
+- **消除启动白屏**：用 `deferFirstFrame()` 让系统启动图保持到权限查询和目录预热完成，首帧直接呈现文件列表，不再出现「启动图 → 空白页 → 骨架屏 → 列表」的多次跳变
+- **权限查询提前**：启动阶段并行完成存储权限检查，避免进入后再弹窗
+
+### 三、APK 安装方式可选
+
+上游点击 APK 一律走系统安装器。本分支增加设置项：
+
+| 模式 | 行为 |
+|---|---|
+| 系统安装器 | 默认，弹出系统安装界面 |
+| 第三方安装器 | 可选已安装的安装器（如 MT 管理器、App Manager） |
+| Shizuku 静默 | 有 Shizuku 权限时直接静默安装，无感 |
+
+安装方式选择页面使用标准页面转场（从右滑入），与设置页一致。
+
+### 四、界面调整
+
+- **分屏按钮**移到右上角 AppBar，不再占用底部空间
+- **文件列表时间常显**：文件显示修改时间，文件夹隐藏（可在设置里关闭）
+- **三点菜单分享常显**：不再藏在二级菜单里
+- **设置项文案**：按功能重新分组，全部中文
+
+### 五、主题与图标
+
+- **深浅色跟随系统**：侧边栏一键切换（跟随系统 / 强制深色 / 强制浅色）
+- **多套应用图标**：默认 + 5 套徽标
+  - 徽标 2、3 修补了原图标线条中段的断开（合口）
+  - 徽标 5 为莫奈蓝配色
+  - 切换即时生效，无需重启
+
+### 六、更新检查（fork 专用）
+
+上游没有更新检查。本分支新增：
+
+- **关于页 → 检查更新**：查询本仓库的 Releases，提示新版本
+- **更多设置 → 自动检查更新**：启动时静默检查（默认开启）
+
+更新源指向 `Starry398/NFile`，不会误连到上游。
+
+**正式版与预发布版互不打扰**：
+
+| 当前安装 | 检查范围 |
+|---|---|
+| 正式版 `v1.0.44` | 只提示不带 `-pre.` 的版本 |
+| 预发布 `v1.0.44-pre.3` | 只提示 `-pre.` 版本，忽略正式版 |
+
+versionCode 规则：
+
+- 正式版：`43000 + run_number`
+- 预发布：`44000 + run_number`
+
+预发布版 versionCode 更高，可以直接覆盖正式版安装；反过来装正式版时需要卸载（Android 同签名降级限制）。
+
+### 七、Bug 修复
+
+- **快捷分类计数恒为 0**：分类统计函数只认中文 key，调用方传的是英文，导致所有分类数字都是 0 —— 已让两侧 key 兼容
+- **切换图标后桌面图标消失**：图标别名列表漏了新加的 Logo6/Logo7，切换时把旧别名全部禁用却没启用新的，导致 launcher 无入口。已补齐，并在启动时做自愈（残留的无效图标标识自动回退到默认图标）
+
+---
+
+## 构建方式
+
+不直接修改上游源码，采用 **patch 机制**：
+
+```
+starry/patch/zn-ch/
+├── 001-汉化.patch              # 汉化文本替换
+├── 002-APK安装与分屏.patch      # Kotlin 侧安装逻辑 + 分屏
+├── 003-启动与性能.patch         # 启动图、gradle、API 降级
+├── 004-主题与图标切换.patch     # 主题、图标、设置页、更新检查
+└── 005-图标资源.patch           # 图标 PNG 资源
+```
+
+CI 流程（`.github/workflows/build.yml`）：
+
+1. checkout 上游
+2. 依次 `git apply` 五个补丁
+3. 打 keystore、构建、签名
+4. 发布 Release
+
+上游升级时，补丁若冲突需要同步调整。
+
+### 预发布构建
+
+`.github/workflows/build-pre.yml`，手动触发时可输入 pre 序号：
+
+```
+tag:      v1.0.44-pre.1
+name:     v1.0.44-pre.1
+prerelease: true
+```
+
+不填序号则使用运行序号。
+
+---
+
+## 已知限制
+
+- 仅 arm64-v8a，32 位设备无法安装
+- 与上游版本同为 `com.rubex.nfile.starry` 的兄弟分支（如官方版 `com.rubex.nfile`）可共存，但和其他 fork 若改了相同包名则不能
+- Shizuku 静默安装需要设备已授予 Shizuku 权限
+
+## 致谢
+
+界面与核心功能来自 [Senzme/NFile](https://github.com/Senzme/NFile)，本仓库只做汉化与使用体验上的调整。
