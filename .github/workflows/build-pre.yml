@@ -14,20 +14,24 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout upstream
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          repository: Senzme/NFile
-          fetch-depth: 1
 
-      - name: Apply my patches
+      - name: Free disk space
         run: |
-          git config --global user.name "Starry398"
-          git config --global user.email "starry@users.noreply.github.com"
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk/25.* /opt/ghc \
+                      /usr/local/share/boost /usr/share/swift 2>/dev/null || true
+          sudo apt-get clean 2>/dev/null || true
+
+      - name: Apply 补丁
+        run: |
+          set -e
           for f in starry/patch/zn-ch/*.patch; do
-            echo "applying $f"
-            git apply --binary "$f" || exit 1
+            echo "==> $(basename "$f")"
+            git apply --check "$f"
+            git apply "$f"
           done
+          echo "全部补丁已应用"
 
       - name: Read version
         id: v
