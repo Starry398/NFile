@@ -106,30 +106,30 @@ jobs:
       - name: Rename
         run: |
           cd build/app/outputs/flutter-apk
-          mv app-arm64-v8a-release.apk "NFile-v${{ steps.v.outputs.name }}-b${{ github.run_number }}-arm64-v8a.apk"
+          mv app-arm64-v8a-release.apk "NFile-v${{ steps.v.outputs.name }}-arm64-v8a.apk"
           ls -lh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NFile-v${{ steps.v.outputs.name }}-b${{ github.run_number }}-arm64-v8a
+          name: NFile-v${{ steps.v.outputs.name }}-arm64-v8a
           path: |
-            build/app/outputs/flutter-apk/NFile-v${{ steps.v.outputs.name }}-b${{ github.run_number }}-arm64-v8a.apk
+            build/app/outputs/flutter-apk/NFile-v${{ steps.v.outputs.name }}-arm64-v8a.apk
             build/app/outputs/mapping/release/mapping.txt
             build/symbols/**
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.v.outputs.name }}-b${{ github.run_number }}
-          name: v${{ steps.v.outputs.name }} · build ${{ github.run_number }}
+          tag_name: v${{ steps.v.outputs.name }}
+          name: v${{ steps.v.outputs.name }}
           body: |
             NFile 汉化版，基于上游 v${{ steps.v.outputs.name }}
             - 包名 `com.rubex.nfile.starry`，可与官方版共存
             - 仅 arm64-v8a
             - versionCode ${{ github.run_number }}+43000
-            - build ${{ github.run_number }} @ ${{ github.sha }}
-          files: build/app/outputs/flutter-apk/NFile-v${{ steps.v.outputs.name }}-b${{ github.run_number }}-arm64-v8a.apk
+            - 构建 ${{ github.sha }}
+          files: build/app/outputs/flutter-apk/NFile-v${{ steps.v.outputs.name }}-arm64-v8a.apk
           draft: false
           make_latest: true
         env:
