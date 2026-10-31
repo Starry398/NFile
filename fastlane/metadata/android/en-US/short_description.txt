@@ -1,1 +1,0 @@
-A beautiful Material Design file manager with premium UI/UX.
