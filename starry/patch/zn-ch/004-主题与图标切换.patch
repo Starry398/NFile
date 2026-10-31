@@ -2595,7 +2595,7 @@ index 01777e3..947b877 100644
                        color: _showFoldersMode ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant,
                        fontSize: 13,
 diff --git a/lib/ui/screens/more_settings_screen.dart b/lib/ui/screens/more_settings_screen.dart
-index bd359fd..69fda3c 100644
+index bd359fd..624a58e 100644
 --- a/lib/ui/screens/more_settings_screen.dart
 +++ b/lib/ui/screens/more_settings_screen.dart
 @@ -1,5 +1,6 @@
@@ -4316,7 +4316,7 @@ index bd359fd..69fda3c 100644
                ],
              ),
              content: SizedBox(
-@@ -2340,26 +2530,20 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2340,7 +2530,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                  mainAxisSize: MainAxisSize.min,
                  children: [
                    const Text(
@@ -4325,19 +4325,7 @@ index bd359fd..69fda3c 100644
                      style: TextStyle(fontSize: 13, height: 1.3, color: Colors.grey),
                    ),
                    const SizedBox(height: 20),
-                   Flexible(
-                     child: SingleChildScrollView(
--                      child: GridView.count(
--                        shrinkWrap: true,
--                        physics: const NeverScrollableScrollPhysics(),
--                        crossAxisCount: 2,
--                        crossAxisSpacing: 12,
--                        mainAxisSpacing: 12,
--                        childAspectRatio: 0.85,
-+                      child: Column(
-                         children: [
-                           _buildIconOptionCard(
-                             context,
+@@ -2359,7 +2549,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
                              id: 'default',
@@ -4346,7 +4334,7 @@ index bd359fd..69fda3c 100644
                              imagePath: 'assets/ic_launcher.webp',
                            ),
                            _buildIconOptionCard(
-@@ -2367,7 +2551,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2367,7 +2557,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
                              id: 'logo1',
@@ -4355,7 +4343,7 @@ index bd359fd..69fda3c 100644
                              imagePath: 'assets/logo/n1.png',
                            ),
                            _buildIconOptionCard(
-@@ -2375,7 +2559,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2375,7 +2565,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
                              id: 'logo2',
@@ -4364,7 +4352,7 @@ index bd359fd..69fda3c 100644
                              imagePath: 'assets/logo/n2.png',
                            ),
                            _buildIconOptionCard(
-@@ -2383,7 +2567,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2383,7 +2573,7 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
                              id: 'logo3',
@@ -4373,7 +4361,7 @@ index bd359fd..69fda3c 100644
                              imagePath: 'assets/logo/n3.png',
                            ),
                            _buildIconOptionCard(
-@@ -2391,20 +2575,43 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
+@@ -2391,20 +2581,43 @@ void _showAppIconPickerDialog(BuildContext context, FileManagerProvider fileMana
                              fileManager,
                              theme,
                              id: 'logo4',
@@ -4419,133 +4407,46 @@ index bd359fd..69fda3c 100644
                ),
              ],
            ),
-@@ -2424,59 +2631,76 @@ Widget _buildIconOptionCard(
- }) {
+@@ -2425,12 +2638,16 @@ Widget _buildIconOptionCard(
    final isSelected = fileManager.activeAppIcon == id;
  
--  return Card(
+   return Card(
 -    color: isSelected ? theme.colorScheme.primaryContainer.withOpacity(0.4) : theme.colorScheme.surfaceVariant.withOpacity(0.15),
--    elevation: 0,
--    shape: RoundedRectangleBorder(
--      borderRadius: BorderRadius.circular(16),
--      side: BorderSide(
++    color: isSelected
++        ? theme.colorScheme.primaryContainer.withOpacity(0.4)
++        : theme.colorScheme.surfaceVariant.withOpacity(0.15),
+     elevation: 0,
+     shape: RoundedRectangleBorder(
+       borderRadius: BorderRadius.circular(16),
+       side: BorderSide(
 -        color: isSelected ? theme.colorScheme.primary : theme.dividerColor.withOpacity(0.08),
--        width: isSelected ? 2.0 : 1.0,
-+  return Padding(
-+    padding: const EdgeInsets.only(bottom: 10),
-+    child: Card(
-+      margin: EdgeInsets.zero,
-+      color: isSelected
-+          ? theme.colorScheme.primaryContainer.withOpacity(0.4)
-+          : theme.colorScheme.surfaceVariant.withOpacity(0.15),
-+      elevation: 0,
-+      shape: RoundedRectangleBorder(
-+        borderRadius: BorderRadius.circular(16),
-+        side: BorderSide(
-+          color: isSelected
-+              ? theme.colorScheme.primary
-+              : theme.dividerColor.withOpacity(0.08),
-+          width: isSelected ? 2.0 : 1.0,
-+        ),
-       ),
--    ),
--    child: InkWell(
--      onTap: () {
--        fileManager.setActiveAppIcon(id);
--        ScaffoldMessenger.of(context).showSnackBar(
--          SnackBar(
--            content: Text('App icon switched to $title successfully!'),
--            behavior: SnackBarBehavior.floating,
--            duration: const Duration(seconds: 2),
--          ),
--        );
--      },
--      borderRadius: BorderRadius.circular(16),
--      child: Padding(
--        padding: const EdgeInsets.all(8.0),
--        child: Column(
--          mainAxisAlignment: MainAxisAlignment.center,
--          children: [
--            ClipRRect(
--              borderRadius: BorderRadius.circular(12),
--              child: Image.asset(
--                imagePath,
--                width: 56,
--                height: 56,
--                fit: BoxFit.cover,
--                errorBuilder: (_, __, ___) => Container(
--                  width: 56,
--                  height: 56,
--                  color: Colors.grey.withOpacity(0.2),
--                  child: const Icon(Icons.broken_image, size: 24),
-+      child: InkWell(
-+        onTap: () {
-+          fileManager.setActiveAppIcon(id);
-+          ScaffoldMessenger.of(context).showSnackBar(
-+            SnackBar(
-+              content: Text('应用图标已切换为 $title'),
-+              behavior: SnackBarBehavior.floating,
-+              duration: const Duration(seconds: 2),
-+            ),
-+          );
-+        },
-+        borderRadius: BorderRadius.circular(16),
-+        child: Padding(
-+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-+          child: Row(
-+            children: [
-+              ClipRRect(
-+                borderRadius: BorderRadius.circular(12),
-+                child: Image.asset(
-+                  imagePath,
-+                  width: 48,
-+                  height: 48,
-+                  fit: BoxFit.cover,
-+                  errorBuilder: (_, __, ___) => Container(
-+                    width: 48,
-+                    height: 48,
-+                    color: Colors.grey.withOpacity(0.2),
-+                    child: const Icon(Icons.broken_image, size: 20),
-+                  ),
-                 ),
-               ),
--            ),
--            const SizedBox(height: 8),
--            Text(
--              title,
--              style: TextStyle(
--                fontSize: 12,
--                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
--                color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
-+              const SizedBox(width: 14),
-+              Expanded(
-+                child: Text(
-+                  title,
-+                  style: TextStyle(
-+                    fontSize: 15,
-+                    fontWeight:
-+                        isSelected ? FontWeight.bold : FontWeight.w500,
-+                    color: isSelected
-+                        ? theme.colorScheme.primary
-+                        : theme.colorScheme.onSurface,
-+                  ),
-+                ),
-               ),
--              textAlign: TextAlign.center,
--            ),
--          ],
-+              if (isSelected)
-+                Icon(
-+                  Icons.check_circle_rounded,
-+                  size: 20,
-+                  color: theme.colorScheme.primary,
-+                ),
-+            ],
-+          ),
-         ),
++        color: isSelected
++            ? theme.colorScheme.primary
++            : theme.dividerColor.withOpacity(0.08),
+         width: isSelected ? 2.0 : 1.0,
        ),
      ),
-@@ -2493,13 +2717,13 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2439,7 +2656,7 @@ Widget _buildIconOptionCard(
+         fileManager.setActiveAppIcon(id);
+         ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(
+-            content: Text('App icon switched to $title successfully!'),
++            content: Text('应用图标已切换为 $title！'),
+             behavior: SnackBarBehavior.floating,
+             duration: const Duration(seconds: 2),
+           ),
+@@ -2472,7 +2689,9 @@ Widget _buildIconOptionCard(
+               style: TextStyle(
+                 fontSize: 12,
+                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+-                color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
++                color: isSelected
++                    ? theme.colorScheme.primary
++                    : theme.colorScheme.onSurface,
+               ),
+               textAlign: TextAlign.center,
+             ),
+@@ -2493,13 +2712,13 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
        final current = fileManager.fontFamilyOption;
        final hasCustomFont = fileManager.customFontPath != null;
        final options = [
@@ -4565,7 +4466,7 @@ index bd359fd..69fda3c 100644
        ];
  
        return SafeArea(
-@@ -2520,12 +2744,12 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2520,12 +2739,12 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                    ),
                    const SizedBox(height: 16),
                    Text(
@@ -4580,7 +4481,7 @@ index bd359fd..69fda3c 100644
                      style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6), fontSize: 13, fontFamily: 'LexendDeca'),
                    ),
                    const SizedBox(height: 16),
-@@ -2565,7 +2789,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2565,7 +2784,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                    OutlinedButton.icon(
                      icon: const Icon(Broken.document_upload, size: 20),
                      label: Text(
@@ -4589,7 +4490,7 @@ index bd359fd..69fda3c 100644
                        style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'LexendDeca'),
                      ),
                      style: OutlinedButton.styleFrom(
-@@ -2589,13 +2813,13 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2589,13 +2808,13 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                              fileManager.setFontFamilyOption('custom');
                              if (context.mounted) {
                                ScaffoldMessenger.of(context).showSnackBar(
@@ -4605,7 +4506,7 @@ index bd359fd..69fda3c 100644
                                );
                              }
                            }
-@@ -2604,8 +2828,8 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2604,8 +2823,8 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                              showDialog(
                                context: context,
                                builder: (context) => AlertDialog(
@@ -4616,7 +4517,7 @@ index bd359fd..69fda3c 100644
                                  actions: [
                                    TextButton(
                                      onPressed: () => Navigator.pop(context),
-@@ -2623,7 +2847,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2623,7 +2842,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                      const SizedBox(height: 8),
                      TextButton.icon(
                        icon: const Icon(Broken.trash, size: 18, color: Colors.redAccent),
@@ -4625,7 +4526,7 @@ index bd359fd..69fda3c 100644
                        onPressed: () async {
                          Navigator.pop(ctx);
                          await fileManager.setCustomFontPath(null);
-@@ -2632,7 +2856,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
+@@ -2632,7 +2851,7 @@ void _showFontFamilyPickerDialog(BuildContext context, FileManagerProvider fileM
                          }
                          if (context.mounted) {
                            ScaffoldMessenger.of(context).showSnackBar(
@@ -4634,7 +4535,7 @@ index bd359fd..69fda3c 100644
                            );
                          }
                        },
-@@ -2656,10 +2880,10 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
+@@ -2656,10 +2875,10 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
      builder: (ctx) {
        final current = RecycleBinService.getAutoDeleteDays();
        final options = [
@@ -4649,7 +4550,7 @@ index bd359fd..69fda3c 100644
        ];
  
        return SafeArea(
-@@ -2683,7 +2907,7 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
+@@ -2683,7 +2902,7 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
                Padding(
                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
                  child: Text(
@@ -4658,7 +4559,7 @@ index bd359fd..69fda3c 100644
                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, fontSize: 18),
                  ),
                ),
-@@ -2691,7 +2915,7 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
+@@ -2691,7 +2910,7 @@ void _showAutoDeleteDaysPickerDialog(BuildContext context, ThemeData theme, Void
                Padding(
                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
                  child: Text(
