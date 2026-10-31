@@ -1,0 +1,233 @@
+diff --git a/android/app/src/main/kotlin/com/rubex/nfile/MainActivity.kt b/android/app/src/main/kotlin/com/rubex/nfile/MainActivity.kt
+index c67c7b8..a217f45 100644
+--- a/android/app/src/main/kotlin/com/rubex/nfile/MainActivity.kt
++++ b/android/app/src/main/kotlin/com/rubex/nfile/MainActivity.kt
+@@ -411,7 +411,8 @@ class MainActivity : AudioServiceFragmentActivity() {
+                                 "com.rubex.nfile.MainActivityLogo1",
+                                 "com.rubex.nfile.MainActivityLogo2",
+                                 "com.rubex.nfile.MainActivityLogo3",
+-                                "com.rubex.nfile.MainActivityLogo4"
++                                "com.rubex.nfile.MainActivityLogo4",
++                                "com.rubex.nfile.MainActivityLogo5"
+                             )
+ 
+                             for (alias in aliases) {
+@@ -610,6 +611,80 @@ class MainActivity : AudioServiceFragmentActivity() {
+             }
+         }
+ 
++        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.rubex.nfile/install_apk").setMethodCallHandler { call, result ->
++            when (call.method) {
++                "list" -> {
++                    try {
++                        val probe = Intent(Intent.ACTION_VIEW).apply {
++                            setDataAndType(Uri.parse("file:///tmp/_probe.apk"), "application/vnd.android.package-archive")
++                        }
++                        val infos = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
++                            packageManager.queryIntentActivities(probe, PackageManager.ResolveInfoFlags.of(0))
++                        } else {
++                            @Suppress("DEPRECATION")
++                            packageManager.queryIntentActivities(probe, 0)
++                        }
++                        val seen = mutableSetOf<String>()
++                        val out = mutableListOf<Map<String, String>>()
++                        for (ri in infos) {
++                            val pkg = ri.activityInfo.packageName
++                            if (!seen.add(pkg)) continue
++                            val label = try { ri.loadLabel(packageManager).toString() } catch (e: Exception) { pkg }
++                            out.add(mapOf("package" to pkg, "label" to label))
++                        }
++                        result.success(out)
++                    } catch (e: Exception) {
++                        result.error("ERROR", e.message, null)
++                    }
++                }
++                "install" -> {
++                    val path = call.argument<String>("path")
++                    val targetPackage = call.argument<String>("targetPackage")
++                    if (path.isNullOrEmpty()) {
++                        result.error("ARGS", "path is null", null)
++                        return@setMethodCallHandler
++                    }
++                    val file = File(path)
++                    if (!file.exists()) {
++                        result.error("NOT_FOUND", "apk not found: $path", null)
++                        return@setMethodCallHandler
++                    }
++                    try {
++                        val uri = androidx.core.content.FileProvider.getUriForFile(
++                            this,
++                            "$packageName.apkinstaller",
++                            file
++                        )
++                        val baseIntent = Intent(Intent.ACTION_VIEW).apply {
++                            setDataAndType(uri, "application/vnd.android.package-archive")
++                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
++                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
++                            clipData = android.content.ClipData.newRawUri(null, uri)
++                        }
++                        runOnUiThread {
++                            try {
++                                if (!targetPackage.isNullOrEmpty()) {
++                                    val target = Intent(baseIntent).apply { setPackage(targetPackage) }
++                                    if (packageManager.resolveActivity(target, 0) != null) {
++                                        startActivity(target)
++                                        result.success(true)
++                                        return@runOnUiThread
++                                    }
++                                }
++                                startActivity(Intent.createChooser(baseIntent, "选择安装器"))
++                                result.success(true)
++                            } catch (e: Exception) {
++                                result.error("NO_HANDLER", e.message, null)
++                            }
++                        }
++                    } catch (e: Exception) {
++                        result.error("ERROR", e.message, null)
++                    }
++                }
++                else -> result.notImplemented()
++            }
++        }
++
+         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.rubex.nfile/gesture_exclusion").setMethodCallHandler { call, result ->
+             if (call.method == "setSystemGestureExclusionRects") {
+                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+diff --git a/android/app/src/main/res/xml/apk_paths.xml b/android/app/src/main/res/xml/apk_paths.xml
+new file mode 100644
+index 0000000..4b4771a
+--- /dev/null
++++ b/android/app/src/main/res/xml/apk_paths.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<paths>
++    <external-path name="sdcard" path="." />
++    <root-path name="root" path="." />
++    <files-path name="files" path="." />
++    <cache-path name="cache" path="." />
++</paths>
+diff --git a/lib/services/apk_installer_service.dart b/lib/services/apk_installer_service.dart
+index e246fb0..579e071 100644
+--- a/lib/services/apk_installer_service.dart
++++ b/lib/services/apk_installer_service.dart
+@@ -1,9 +1,12 @@
+ import 'dart:io';
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
+ import 'package:path/path.dart' as p;
+ import 'package:path_provider/path_provider.dart';
+ import 'package:open_filex/open_filex.dart';
+ import 'archive_service.dart';
++import 'preferences_service.dart';
++import 'root_shizuku_service.dart';
+ import 'app_manager_service.dart';
+ 
+ class ApkInstallerService {
+@@ -18,6 +21,22 @@ class ApkInstallerService {
+     final ext = p.extension(path).toLowerCase();
+ 
+     if (ext == '.apk') {
++      final target = PreferencesService.getApkInstaller();
++
++      // Shizuku 静默安装
++      if (target == 'shizuku') {
++        if (await _installViaShizuku(context, path)) return;
++      }
++
++      // 指定安装器 / 系统选择器
++      try {
++        const channel = MethodChannel('com.rubex.nfile/install_apk');
++        final ok = await channel.invokeMethod<bool>('install', {
++          'path': path,
++          'targetPackage': target == 'shizuku' ? '' : target,
++        });
++        if (ok == true) return;
++      } catch (_) {}
+       await OpenFilex.open(path);
+       return;
+     }
+@@ -31,7 +50,7 @@ class ApkInstallerService {
+           children: [
+             CircularProgressIndicator(),
+             SizedBox(width: 20),
+-            Expanded(child: Text("Extracting package bundle for installation...")),
++            Expanded(child: Text("正在解包安装…")),
+           ],
+         ),
+       ),
+@@ -78,7 +97,7 @@ class ApkInstallerService {
+         if (!context.mounted) return;
+         Navigator.pop(context); // Close loading dialog
+         ScaffoldMessenger.of(context).showSnackBar(
+-          const SnackBar(content: Text('No installable APK found in package bundle')),
++          const SnackBar(content: Text('压缩包内没有可安装的 APK')),
+         );
+         return;
+       }
+@@ -94,7 +113,7 @@ class ApkInstallerService {
+         final success = await AppManagerService.installSplitApks(apkPaths);
+         if (!success && context.mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+-            const SnackBar(content: Text('Failed to trigger split APK installer')),
++            const SnackBar(content: Text('无法启动分包安装器')),
+           );
+         }
+       }
+@@ -106,4 +125,57 @@ class ApkInstallerService {
+       );
+     }
+   }
++
++  /// 通过 Shizuku 执行 pm install，成功返回 true。
++  static Future<bool> _installViaShizuku(BuildContext context, String path) async {
++    try {
++      final granted = await RootShizukuService.requestShizukuPermission();
++      if (!granted) {
++        if (context.mounted) {
++          ScaffoldMessenger.of(context).showSnackBar(
++            const SnackBar(
++              content: Text('Shizuku 未授权，已改用系统安装器'),
++              behavior: SnackBarBehavior.floating,
++            ),
++          );
++        }
++        return false;
++      }
++
++      if (context.mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(
++            content: Text('正在通过 Shizuku 安装 ${p.basename(path)}…'),
++            behavior: SnackBarBehavior.floating,
++            duration: const Duration(seconds: 2),
++          ),
++        );
++      }
++
++      final safePath = path.replaceAll('"', '\\"');
++      final output = await RootShizukuService.runCommand(
++        'pm install -r -t "$safePath"',
++        useRoot: false,
++      );
++
++      final ok = (output ?? '').contains('Success');
++      if (context.mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(
++            content: Text(ok ? '安装成功' : '安装失败：${output ?? '无输出'}'),
++            behavior: SnackBarBehavior.floating,
++            duration: Duration(seconds: ok ? 2 : 5),
++          ),
++        );
++      }
++      return ok;
++    } catch (e) {
++      if (context.mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(content: Text('Shizuku 安装出错：$e'), behavior: SnackBarBehavior.floating),
++        );
++      }
++      return false;
++    }
++  }
+ }

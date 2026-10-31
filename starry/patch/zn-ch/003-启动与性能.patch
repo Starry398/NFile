@@ -1,0 +1,539 @@
+diff --git a/android/app/build.gradle.kts b/android/app/build.gradle.kts
+index df186c1..7701553 100644
+--- a/android/app/build.gradle.kts
++++ b/android/app/build.gradle.kts
+@@ -41,19 +41,19 @@ android {
+     }
+ 
+     defaultConfig {
+-        applicationId = "com.rubex.nfile"
++        applicationId = "com.rubex.nfile.starry"
+         minSdk = flutter.minSdkVersion
+         targetSdk = flutter.targetSdkVersion
+         versionCode = flutter.versionCode
+         versionName = flutter.versionName
+         androidResources {
+-            localeFilters.addAll(listOf("en"))
++            localeFilters.addAll(listOf("en", "zh"))
+         }
+     }
+ 
+     buildTypes {
+         release {
+-            signingConfig = signingConfigs.getByName("release")
++            signingConfig = if (keystorePropertiesFile.exists()) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
+             isMinifyEnabled = true
+             isShrinkResources = true
+             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+diff --git a/android/app/src/main/res/drawable-v21/launch_background.xml b/android/app/src/main/res/drawable-v21/launch_background.xml
+index f74085f..fd06659 100644
+--- a/android/app/src/main/res/drawable-v21/launch_background.xml
++++ b/android/app/src/main/res/drawable-v21/launch_background.xml
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <!-- Modify this file to customize your launch splash screen -->
+ <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+-    <item android:drawable="?android:colorBackground" />
++    <item android:drawable="@color/splash_bg" />
+ 
+     <!-- You can insert your own image assets here -->
+     <!-- <item>
+diff --git a/android/app/src/main/res/drawable/launch_background.xml b/android/app/src/main/res/drawable/launch_background.xml
+index 304732f..fd06659 100644
+--- a/android/app/src/main/res/drawable/launch_background.xml
++++ b/android/app/src/main/res/drawable/launch_background.xml
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <!-- Modify this file to customize your launch splash screen -->
+ <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+-    <item android:drawable="@android:color/white" />
++    <item android:drawable="@color/splash_bg" />
+ 
+     <!-- You can insert your own image assets here -->
+     <!-- <item>
+diff --git a/android/app/src/main/res/values-night/colors.xml b/android/app/src/main/res/values-night/colors.xml
+new file mode 100644
+index 0000000..ece0280
+--- /dev/null
++++ b/android/app/src/main/res/values-night/colors.xml
+@@ -0,0 +1,4 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <color name="splash_bg">#0D0D1A</color>
++</resources>
+diff --git a/android/app/src/main/res/values/colors.xml b/android/app/src/main/res/values/colors.xml
+new file mode 100644
+index 0000000..9d3c676
+--- /dev/null
++++ b/android/app/src/main/res/values/colors.xml
+@@ -0,0 +1,4 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <color name="splash_bg">#F9F9FF</color>
++</resources>
+diff --git a/lib/core/utils.dart b/lib/core/utils.dart
+index 26bee2a..294ca1e 100644
+--- a/lib/core/utils.dart
++++ b/lib/core/utils.dart
+@@ -18,6 +18,9 @@ class FileUtils {
+ 
+   static String formatDate(DateTime date, {bool use24Hour = true}) {
+     final timePattern = use24Hour ? 'HH:mm' : 'hh:mm a';
++    if (Intl.defaultLocale != null && Intl.defaultLocale!.startsWith('zh')) {
++      return DateFormat('yyyy年M月d日  $timePattern').format(date);
++    }
+     return DateFormat('MMM dd, yyyy  $timePattern').format(date);
+   }
+ 
+diff --git a/lib/providers/media_provider.dart b/lib/providers/media_provider.dart
+index aba1aa5..2fec2b1 100644
+--- a/lib/providers/media_provider.dart
++++ b/lib/providers/media_provider.dart
+@@ -115,16 +115,16 @@ class MediaProvider extends ChangeNotifier {
+     if (savedOrder != null && savedOrder.isNotEmpty) {
+       _categoryOrder = savedOrder;
+       bool orderUpdated = false;
+-      if (!_categoryOrder.contains('Apps')) {
+-        _categoryOrder.add('Apps');
++      if (!_categoryOrder.contains('应用')) {
++        _categoryOrder.add('应用');
+         orderUpdated = true;
+       }
+-      if (!_categoryOrder.contains('Recycle Bin')) {
+-        _categoryOrder.add('Recycle Bin');
++      if (!_categoryOrder.contains('回收站')) {
++        _categoryOrder.add('回收站');
+         orderUpdated = true;
+       }
+-      if (!_categoryOrder.contains('Settings')) {
+-        _categoryOrder.add('Settings');
++      if (!_categoryOrder.contains('设置')) {
++        _categoryOrder.add('设置');
+         orderUpdated = true;
+       }
+       if (orderUpdated) {
+@@ -148,16 +148,16 @@ class MediaProvider extends ChangeNotifier {
+     if (savedOrder != null && savedOrder.isNotEmpty) {
+       _categoryOrder = savedOrder;
+       bool orderUpdated = false;
+-      if (!_categoryOrder.contains('Apps')) {
+-        _categoryOrder.add('Apps');
++      if (!_categoryOrder.contains('应用')) {
++        _categoryOrder.add('应用');
+         orderUpdated = true;
+       }
+-      if (!_categoryOrder.contains('Recycle Bin')) {
+-        _categoryOrder.add('Recycle Bin');
++      if (!_categoryOrder.contains('回收站')) {
++        _categoryOrder.add('回收站');
+         orderUpdated = true;
+       }
+-      if (!_categoryOrder.contains('Settings')) {
+-        _categoryOrder.add('Settings');
++      if (!_categoryOrder.contains('设置')) {
++        _categoryOrder.add('设置');
+         orderUpdated = true;
+       }
+       if (orderUpdated) {
+@@ -243,29 +243,29 @@ class MediaProvider extends ChangeNotifier {
+   List<AssetPathEntity> get videoAlbums => _videoAlbums;
+ 
+   List<String> _categoryOrder = [
+-    'Images',
+-    'Videos',
+-    'Audio',
+-    'Documents',
+-    'Archives',
+-    'Downloads',
+-    'APKs',
+-    'Screenshots',
+-    'Apps',
+-    'Recycle Bin',
+-    'Settings',
++    '图片',
++    '视频',
++    '音频',
++    '文档',
++    '压缩包',
++    '下载',
++    '安装包',
++    '截图',
++    '应用',
++    '回收站',
++    '设置',
+   ];
+ 
+   List<String> _activeCategories = [
+-    'Images',
+-    'Videos',
+-    'Audio',
+-    'Documents',
+-    'Archives',
+-    'Downloads',
+-    'APKs',
+-    'Screenshots',
+-    'Recycle Bin',
++    '图片',
++    '视频',
++    '音频',
++    '文档',
++    '压缩包',
++    '下载',
++    '安装包',
++    '截图',
++    '回收站',
+   ];
+ 
+ 
+@@ -301,8 +301,8 @@ class MediaProvider extends ChangeNotifier {
+   }
+ 
+   List<dynamic> get images {
+-    final excluded = _excludedDefaultPaths['Images'] ?? [];
+-    final excludeGallery = excluded.contains('Device Gallery (Auto)');
++    final excluded = _excludedDefaultPaths['图片'] ?? [];
++    final excludeGallery = excluded.contains('设备相册（自动）');
+     final list = [..._images, ..._customImages].where((item) {
+       if (item is AssetEntity && excludeGallery) return false;
+       final path = _getItemPath(item);
+@@ -316,8 +316,8 @@ class MediaProvider extends ChangeNotifier {
+   }
+ 
+   List<dynamic> get videos {
+-    final excluded = _excludedDefaultPaths['Videos'] ?? [];
+-    final excludeGallery = excluded.contains('Device Gallery (Auto)');
++    final excluded = _excludedDefaultPaths['视频'] ?? [];
++    final excludeGallery = excluded.contains('设备相册（自动）');
+     final list = [..._videos, ..._customVideos].where((item) {
+       if (item is AssetEntity && excludeGallery) return false;
+       final path = _getItemPath(item);
+@@ -331,8 +331,8 @@ class MediaProvider extends ChangeNotifier {
+   }
+ 
+   List<SongModel> get audios {
+-    final excluded = _excludedDefaultPaths['Audio'] ?? [];
+-    final excludeLibrary = excluded.contains('Device Audio Library (Auto)');
++    final excluded = _excludedDefaultPaths['音频'] ?? [];
++    final excludeLibrary = excluded.contains('设备音频库（自动）');
+     return _audios.where((song) {
+       if (excludeLibrary && song.id < 900000) return false;
+       final path = song.data;
+@@ -342,10 +342,10 @@ class MediaProvider extends ChangeNotifier {
+   }
+ 
+   List<FileSystemEntity> get documents {
+-    final excluded = _excludedDefaultPaths['Documents'] ?? [];
+-    final excludeAllScanned = excluded.contains('Internal Storage (All Folders Scanned)');
++    final excluded = _excludedDefaultPaths['文档'] ?? [];
++    final excludeAllScanned = excluded.contains('内部存储（已扫描全部文件夹）');
+     return _documents.where((file) {
+-      final docPaths = _customCategoryPaths['Documents'] ?? [];
++      final docPaths = _customCategoryPaths['文档'] ?? [];
+       final isCustom = docPaths.any((dir) => p.isWithin(dir, file.path));
+       if (excludeAllScanned && !isCustom) return false;
+       if (_isPathExcluded(file.path, excluded)) return false;
+@@ -354,10 +354,10 @@ class MediaProvider extends ChangeNotifier {
+   }
+ 
+   List<FileSystemEntity> get archives {
+-    final excluded = _excludedDefaultPaths['Archives'] ?? [];
+-    final excludeAllScanned = excluded.contains('Internal Storage (All Folders Scanned)');
++    final excluded = _excludedDefaultPaths['压缩包'] ?? [];
++    final excludeAllScanned = excluded.contains('内部存储（已扫描全部文件夹）');
+     return _archives.where((file) {
+-      final archPaths = _customCategoryPaths['Archives'] ?? [];
++      final archPaths = _customCategoryPaths['压缩包'] ?? [];
+       final isCustom = archPaths.any((dir) => p.isWithin(dir, file.path));
+       if (excludeAllScanned && !isCustom) return false;
+       if (_isPathExcluded(file.path, excluded)) return false;
+@@ -366,7 +366,7 @@ class MediaProvider extends ChangeNotifier {
+   }
+ 
+   List<FileSystemEntity> get downloads {
+-    final excluded = _excludedDefaultPaths['Downloads'] ?? [];
++    final excluded = _excludedDefaultPaths['下载'] ?? [];
+     return _downloads.where((file) {
+       if (_isPathExcluded(file.path, excluded)) return false;
+       return true;
+@@ -374,10 +374,10 @@ class MediaProvider extends ChangeNotifier {
+   }
+ 
+   List<FileSystemEntity> get apks {
+-    final excluded = _excludedDefaultPaths['APKs'] ?? [];
+-    final excludeAllScanned = excluded.contains('Internal Storage (All Folders Scanned)');
++    final excluded = _excludedDefaultPaths['安装包'] ?? [];
++    final excludeAllScanned = excluded.contains('内部存储（已扫描全部文件夹）');
+     return _apks.where((file) {
+-      final apkPaths = _customCategoryPaths['APKs'] ?? [];
++      final apkPaths = _customCategoryPaths['安装包'] ?? [];
+       final isCustom = apkPaths.any((dir) => p.isWithin(dir, file.path));
+       if (excludeAllScanned && !isCustom) return false;
+       if (_isPathExcluded(file.path, excluded)) return false;
+@@ -386,8 +386,8 @@ class MediaProvider extends ChangeNotifier {
+   }
+ 
+   List<dynamic> get screenshots {
+-    final excluded = _excludedDefaultPaths['Screenshots'] ?? [];
+-    final excludeGallery = excluded.contains('Device Gallery (Screenshots)');
++    final excluded = _excludedDefaultPaths['截图'] ?? [];
++    final excludeGallery = excluded.contains('设备相册（截图）');
+     final list = [..._screenshots, ..._customScreenshots].where((item) {
+       if (item is AssetEntity && excludeGallery) return false;
+       final path = _getItemPath(item);
+@@ -519,16 +519,16 @@ class MediaProvider extends ChangeNotifier {
+   int getCategoryItemCount(String category) {
+     if (_isLoaded) {
+       switch (category) {
+-        case 'Images': return images.length;
+-        case 'Videos': return videos.length;
+-        case 'Audio': return _audios.length;
+-        case 'Documents': return _documents.length;
+-        case 'Archives': return _archives.length;
+-        case 'Downloads': return _downloads.length;
+-        case 'APKs': return _apks.length;
+-        case 'Screenshots': return screenshots.length;
+-        case 'Apps': return 0;
+-        case 'Settings': return 0;
++        case '图片': return images.length;
++        case '视频': return videos.length;
++        case '音频': return _audios.length;
++        case '文档': return _documents.length;
++        case '压缩包': return _archives.length;
++        case '下载': return _downloads.length;
++        case '安装包': return _apks.length;
++        case '截图': return screenshots.length;
++        case '应用': return 0;
++        case '设置': return 0;
+       }
+     }
+     return PreferencesService.getCategoryCount(category);
+@@ -574,14 +574,14 @@ class MediaProvider extends ChangeNotifier {
+ 
+         if (map.containsKey('categoryOrder')) {
+           _categoryOrder = List<String>.from(map['categoryOrder'] ?? _categoryOrder);
+-          if (!_categoryOrder.contains('Apps')) {
+-            _categoryOrder.add('Apps');
++          if (!_categoryOrder.contains('应用')) {
++            _categoryOrder.add('应用');
+           }
+-          if (!_categoryOrder.contains('Recycle Bin')) {
+-            _categoryOrder.add('Recycle Bin');
++          if (!_categoryOrder.contains('回收站')) {
++            _categoryOrder.add('回收站');
+           }
+-          if (!_categoryOrder.contains('Settings')) {
+-            _categoryOrder.add('Settings');
++          if (!_categoryOrder.contains('设置')) {
++            _categoryOrder.add('设置');
+           }
+         }
+         if (map.containsKey('activeCategories')) {
+@@ -810,14 +810,14 @@ class MediaProvider extends ChangeNotifier {
+     await _saveCache();
+     _applySort();
+     
+-    PreferencesService.saveCategoryCount('Images', images.length);
+-    PreferencesService.saveCategoryCount('Videos', videos.length);
+-    PreferencesService.saveCategoryCount('Audio', _audios.length);
+-    PreferencesService.saveCategoryCount('Documents', _documents.length);
+-    PreferencesService.saveCategoryCount('Archives', _archives.length);
+-    PreferencesService.saveCategoryCount('Downloads', _downloads.length);
+-    PreferencesService.saveCategoryCount('APKs', _apks.length);
+-    PreferencesService.saveCategoryCount('Screenshots', screenshots.length);
++    PreferencesService.saveCategoryCount('图片', images.length);
++    PreferencesService.saveCategoryCount('视频', videos.length);
++    PreferencesService.saveCategoryCount('音频', _audios.length);
++    PreferencesService.saveCategoryCount('文档', _documents.length);
++    PreferencesService.saveCategoryCount('压缩包', _archives.length);
++    PreferencesService.saveCategoryCount('下载', _downloads.length);
++    PreferencesService.saveCategoryCount('安装包', _apks.length);
++    PreferencesService.saveCategoryCount('截图', screenshots.length);
+ 
+     notifyListeners();
+   }
+@@ -945,14 +945,14 @@ class MediaProvider extends ChangeNotifier {
+ 
+     _applySort();
+ 
+-    PreferencesService.saveCategoryCount('Images', images.length);
+-    PreferencesService.saveCategoryCount('Videos', videos.length);
+-    PreferencesService.saveCategoryCount('Audio', _audios.length);
+-    PreferencesService.saveCategoryCount('Documents', _documents.length);
+-    PreferencesService.saveCategoryCount('Archives', _archives.length);
+-    PreferencesService.saveCategoryCount('Downloads', _downloads.length);
+-    PreferencesService.saveCategoryCount('APKs', _apks.length);
+-    PreferencesService.saveCategoryCount('Screenshots', screenshots.length);
++    PreferencesService.saveCategoryCount('图片', images.length);
++    PreferencesService.saveCategoryCount('视频', videos.length);
++    PreferencesService.saveCategoryCount('音频', _audios.length);
++    PreferencesService.saveCategoryCount('文档', _documents.length);
++    PreferencesService.saveCategoryCount('压缩包', _archives.length);
++    PreferencesService.saveCategoryCount('下载', _downloads.length);
++    PreferencesService.saveCategoryCount('安装包', _apks.length);
++    PreferencesService.saveCategoryCount('截图', screenshots.length);
+ 
+     _isLoading = false;
+     _isLoaded = true;
+@@ -1114,7 +1114,7 @@ class MediaProvider extends ChangeNotifier {
+   Future<void> _loadDocuments() async {
+     final docs = <FileSystemEntity>[];
+     final searchDirs = await _getUserSearchDirs();
+-    final excluded = _excludedDefaultPaths['Documents'] ?? [];
++    final excluded = _excludedDefaultPaths['文档'] ?? [];
+ 
+     for (final dirPath in searchDirs) {
+       if (_isPathExcluded(dirPath, excluded)) continue;
+@@ -1125,7 +1125,7 @@ class MediaProvider extends ChangeNotifier {
+       );
+     }
+ 
+-    final docPaths = _customCategoryPaths['Documents'] ?? [];
++    final docPaths = _customCategoryPaths['文档'] ?? [];
+     for (final dirPath in docPaths) {
+       if (await Directory(dirPath).exists()) {
+         await _scanDirectoryRecursively(
+@@ -1153,9 +1153,9 @@ class MediaProvider extends ChangeNotifier {
+ 
+     // For downloads
+     final dlDirs = ['/storage/emulated/0/Download', '/storage/emulated/0/Downloads'];
+-    final customDlPaths = _customCategoryPaths['Downloads'] ?? [];
++    final customDlPaths = _customCategoryPaths['下载'] ?? [];
+     final allDlDirs = {...dlDirs, ...customDlPaths};
+-    final excludedDl = _excludedDefaultPaths['Downloads'] ?? [];
++    final excludedDl = _excludedDefaultPaths['下载'] ?? [];
+     for (final dirPath in allDlDirs) {
+       if (_isPathExcluded(dirPath, excludedDl)) continue;
+       final dir = Directory(dirPath);
+@@ -1173,8 +1173,8 @@ class MediaProvider extends ChangeNotifier {
+     }
+ 
+     final searchDirs = await _getUserSearchDirs();
+-    final excludedArch = _excludedDefaultPaths['Archives'] ?? [];
+-    final excludedApk = _excludedDefaultPaths['APKs'] ?? [];
++    final excludedArch = _excludedDefaultPaths['压缩包'] ?? [];
++    final excludedApk = _excludedDefaultPaths['安装包'] ?? [];
+ 
+     for (final dirPath in searchDirs) {
+       final isArchExcl = _isPathExcluded(dirPath, excludedArch);
+@@ -1195,7 +1195,7 @@ class MediaProvider extends ChangeNotifier {
+       );
+     }
+ 
+-    final archPaths = _customCategoryPaths['Archives'] ?? [];
++    final archPaths = _customCategoryPaths['压缩包'] ?? [];
+     for (final dirPath in archPaths) {
+       if (await Directory(dirPath).exists()) {
+         await _scanDirectoryRecursively(
+@@ -1210,7 +1210,7 @@ class MediaProvider extends ChangeNotifier {
+       }
+     }
+ 
+-    final apkPaths = _customCategoryPaths['APKs'] ?? [];
++    final apkPaths = _customCategoryPaths['安装包'] ?? [];
+     for (final dirPath in apkPaths) {
+       if (await Directory(dirPath).exists()) {
+         await _scanDirectoryRecursively(
+@@ -1231,16 +1231,16 @@ class MediaProvider extends ChangeNotifier {
+   }
+ 
+   Future<void> _scanCustomCategories() async {
+-    final imagePaths = _customCategoryPaths['Images'] ?? [];
++    final imagePaths = _customCategoryPaths['图片'] ?? [];
+     _customImages = await _scanCustomPaths(imagePaths, FileUtils.isImage);
+ 
+-    final videoPaths = _customCategoryPaths['Videos'] ?? [];
++    final videoPaths = _customCategoryPaths['视频'] ?? [];
+     _customVideos = await _scanCustomPaths(videoPaths, FileUtils.isVideo);
+ 
+-    final screenshotPaths = _customCategoryPaths['Screenshots'] ?? [];
++    final screenshotPaths = _customCategoryPaths['截图'] ?? [];
+     _customScreenshots = await _scanCustomPaths(screenshotPaths, FileUtils.isImage);
+ 
+-    final audioPaths = _customCategoryPaths['Audio'] ?? [];
++    final audioPaths = _customCategoryPaths['音频'] ?? [];
+     final customAudFiles = await _scanCustomPaths(audioPaths, FileUtils.isAudio);
+     _audios.removeWhere((song) => song.id >= 900000);
+     final existingAudioPaths = _audios.map((s) => s.data).toSet();
+@@ -1253,8 +1253,8 @@ class MediaProvider extends ChangeNotifier {
+             '_id': 900000 + i,
+             '_data': file.path,
+             'title': p.basenameWithoutExtension(file.path),
+-            'artist': 'Unknown Artist',
+-            'album': 'Custom Folder',
++            'artist': '未知艺术家',
++            'album': '自定义文件夹',
+             'duration': 0,
+             'size': stat.size,
+             'display_name': p.basename(file.path),
+@@ -1267,7 +1267,7 @@ class MediaProvider extends ChangeNotifier {
+     }
+ 
+     // Documents custom path scan and merge
+-    final docPaths = _customCategoryPaths['Documents'] ?? [];
++    final docPaths = _customCategoryPaths['文档'] ?? [];
+     final customDocs = await _scanCustomPaths(docPaths, (ext) => _docExtensions.contains(ext));
+     _documents.removeWhere((entity) {
+       final isInCustomPath = docPaths.any((dir) => p.isWithin(dir, entity.path));
+@@ -1283,7 +1283,7 @@ class MediaProvider extends ChangeNotifier {
+     }
+ 
+     // Archives custom path scan and merge
+-    final archPaths = _customCategoryPaths['Archives'] ?? [];
++    final archPaths = _customCategoryPaths['压缩包'] ?? [];
+     final customArch = await _scanCustomPaths(archPaths, (ext) => _archiveExtensions.contains(ext));
+     _archives.removeWhere((entity) {
+       final isInCustomPath = archPaths.any((dir) => p.isWithin(dir, entity.path));
+@@ -1299,7 +1299,7 @@ class MediaProvider extends ChangeNotifier {
+     }
+ 
+     // APKs custom path scan and merge
+-    final apkPaths = _customCategoryPaths['APKs'] ?? [];
++    final apkPaths = _customCategoryPaths['安装包'] ?? [];
+     final customApks = await _scanCustomPaths(apkPaths, (ext) => _apkExtensions.contains(ext));
+     _apks.removeWhere((entity) {
+       final isInCustomPath = apkPaths.any((dir) => p.isWithin(dir, entity.path));
+@@ -1315,7 +1315,7 @@ class MediaProvider extends ChangeNotifier {
+     }
+ 
+     // Downloads custom path scan and merge
+-    final customDlPaths = _customCategoryPaths['Downloads'] ?? [];
++    final customDlPaths = _customCategoryPaths['下载'] ?? [];
+     final customDls = <File>[];
+     for (final dirPath in customDlPaths) {
+       final dir = Directory(dirPath);
+@@ -1626,14 +1626,14 @@ class MediaProvider extends ChangeNotifier {
+     }
+ 
+     // Update Counts and Cache
+-    PreferencesService.saveCategoryCount('Images', images.length);
+-    PreferencesService.saveCategoryCount('Videos', videos.length);
+-    PreferencesService.saveCategoryCount('Audio', _audios.length);
+-    PreferencesService.saveCategoryCount('Documents', _documents.length);
+-    PreferencesService.saveCategoryCount('Archives', _archives.length);
+-    PreferencesService.saveCategoryCount('Downloads', _downloads.length);
+-    PreferencesService.saveCategoryCount('APKs', _apks.length);
+-    PreferencesService.saveCategoryCount('Screenshots', screenshots.length);
++    PreferencesService.saveCategoryCount('图片', images.length);
++    PreferencesService.saveCategoryCount('视频', videos.length);
++    PreferencesService.saveCategoryCount('音频', _audios.length);
++    PreferencesService.saveCategoryCount('文档', _documents.length);
++    PreferencesService.saveCategoryCount('压缩包', _archives.length);
++    PreferencesService.saveCategoryCount('下载', _downloads.length);
++    PreferencesService.saveCategoryCount('安装包', _apks.length);
++    PreferencesService.saveCategoryCount('截图', screenshots.length);
+ 
+     await _saveCache();
+     notifyListeners();
+diff --git a/pubspec.yaml b/pubspec.yaml
+index 2ccf425..6a0e77f 100644
+--- a/pubspec.yaml
++++ b/pubspec.yaml
+@@ -40,6 +40,8 @@ dependency_overrides:
+ dependencies:
+   flutter:
+     sdk: flutter
++  flutter_localizations:
++    sdk: flutter
+   flutter_avif: ^3.1.0
+ 
+   # The following adds the Cupertino Icons font to your application.

@@ -18,11 +18,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Apply 汉化补丁
+      - name: Apply 补丁
         run: |
-          git apply --check starry/patch/zn-ch/nfile-zh.patch
-          git apply starry/patch/zn-ch/nfile-zh.patch
-          echo "汉化补丁已应用"
+          set -e
+          for f in starry/patch/zn-ch/*.patch; do
+            echo "==> $(basename "$f")"
+            git apply --check "$f"
+            git apply "$f"
+          done
+          echo "全部补丁已应用"
 
       - name: Read version
         id: v
